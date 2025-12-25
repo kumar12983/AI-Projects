@@ -32,7 +32,6 @@ e.g. "fy_engagement_analysis.py --input WIPs.xlsx --sheet Detail --fy-start 2025
 DELIVERABLES: 
 
 # Engagement Summary (FYTD) - Financial Year To DATE
-
 A) Build Engagement Summary table (rounded to 2 decimals; sorted by TER desc) with columns:
 
   - Engagement ID
@@ -48,10 +47,44 @@ A) Build Engagement Summary table (rounded to 2 decimals; sorted by TER desc) wi
   - Totals row uses SUBTOTAL for numeric columns (including NUI ETD); conditional formatting on NUI ETD: >0 red fill, <0 green fill.
 
 # Employee Summary table
-B) Build Employee Summary table (rounded to 2 decimals; sorted by "Level" desc, TER desc) with columns: - Employee / Product Name - Employee GUI / Product ID - Rank - Grade - Employee Region - Country / Region - Service Line - Hours - NSR - ANSR - Margin Cost - Expense Amount - #Engagements - #Opportunities - TER - Margin Amount - Margin % (on ANSR) - EAF (ANSR/NSR) Add column: "Level" - Rank: Partner/Principal = 7 - Rank: Executive Director = 6 - Rank: Senior Manager AND Grade: 2 = 5 - Rank: Senior Manager AND Grade: 1 = 4 - Rank: Manager = 3 - Rank: Senior = 2 - Rank: Staff/Assistant = 1
+B) Build Employee Summary table (rounded to 2 decimals; sorted by "Level" desc, TER desc) with columns:
+    - Employee / Product Name
+    - Employee GUI / Product ID
+    - Rank
+    - Grade
+    - Employee Region
+    - Country / Region
+    - Service Line
+    - Hours
+    - NSR 
+    - ANSR 
+    - Margin Cost 
+    - Expense Amount 
+    - #Engagements
+    - #Opportunities
+    - TER
+    - Margin Amount
+    - Margin % (on ANSR)
+    - EAF (ANSR/NSR)
+    Add column: "Level" 
+      -  Rank: Partner/Principal = 7
+      -  Rank: Executive Director = 6
+      -  Rank: Senior Manager AND Grade: 2 = 5
+      -  Rank: Senior Manager AND Grade: 1 = 4
+      -  Rank: Manager = 3
+      -  Rank: Senior = 2
+      -  Rank: Staff/Assistant = 1  
 
 # Month-by-Month Summary table
-C) Month by Month Summary - Month - Hours - ANSR / Tech Revenue - Margin Cost - Expense Amount - Margin Amount - TER - Margin %
+ C) Month by Month Summary
+      - Month
+      - Hours
+      - ANSR / Tech Revenue 
+      - Margin Cost 
+      - Expense Amount 
+      - Margin Amount 
+      - TER 
+      - Margin %
 
 # KPI BRIDGE (Target calculations)
 D) KPI BRIDGE (compute and print at the top):
