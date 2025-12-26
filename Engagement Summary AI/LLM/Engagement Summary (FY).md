@@ -1,6 +1,6 @@
 
 TASK: Run end-to-end engagement analysis for a fiscal period using a WIP Excel extract.
-
+ 
 PARAMETERS (edit these as needed):
 - INPUT_FILE: <your_file_name.xlsx>          # e.g., WIPs*.xlsx
 - DETAIL_SHEET: Detail                       # name of the transactional sheet
