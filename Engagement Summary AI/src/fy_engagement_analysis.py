@@ -155,9 +155,15 @@ def engagement_summary(df: pd.DataFrame,
                     if not match.empty and pd.notna(match['Engagement Partner'].iloc[0]):
                         grp.at[idx, 'Engagement Partner'] = match['Engagement Partner'].iloc[0]
 
-    # Merge NUI ETD if available
+    # Merge NUI ETD + BoB partner if available
     if nui_etd is not None:
         grp = grp.merge(nui_etd, on='Engagement ID', how='left')
+
+    # Backfill Engagement Partner from BoB if missing
+    if 'Engagement Partner' in grp.columns and 'Engagement Partner (BoB)' in grp.columns:
+        grp['Engagement Partner'] = grp['Engagement Partner'].fillna(grp['Engagement Partner (BoB)'])
+    elif 'Engagement Partner' not in grp.columns and 'Engagement Partner (BoB)' in grp.columns:
+        grp['Engagement Partner'] = grp['Engagement Partner (BoB)']
 
     # Column order
     cols = ['Engagement ID', 'Engagement Name', 'ANSR / Tech Revenue', 'Margin Cost', 'Margin Amount', 'TER', 'Margin %', 'Hours']
@@ -170,7 +176,8 @@ def engagement_summary(df: pd.DataFrame,
     if 'NUI ETD' in grp.columns:
         cols.append('NUI ETD')
 
-    grp = grp[cols]
+    # Ensure we don't leak the BoB helper column
+    grp = grp[[c for c in cols if c in grp.columns]]
     
     grp = grp.round(2).sort_values(by='TER', ascending=False)
     return grp
@@ -223,22 +230,29 @@ def load_engagement_partners(bills_file: Optional[str]) -> Optional[pd.DataFrame
     """Load Engagement Partner mapping from Bills file."""
     if bills_file is None:
         return None
-    
     # Try "Engagement Partners" sheet first, then "Billing" sheet (from prepare_bills.py)
     for sheet_name in ['Engagement Partners', 'Billing']:
         try:
             partners = pd.read_excel(bills_file, sheet_name=sheet_name, engine='openpyxl')
             partners.columns = [str(c).strip() for c in partners.columns]
             if 'Engagement ID' in partners.columns:
-                # Rename "Billing Partner" to "Engagement Partner" for consistency
-                if 'Billing Partner' in partners.columns:
+                # Normalize partner column name
+                if 'Billing Partner' in partners.columns and 'Engagement Partner' not in partners.columns:
                     partners.rename(columns={'Billing Partner': 'Engagement Partner'}, inplace=True)
                 if 'Engagement Partner' in partners.columns:
-                    return partners[['Engagement ID', 'Engagement Partner']]
-        except Exception as e:
+                    # If Billing sheet, dedupe to a single partner per Engagement ID
+                    cols_to_keep = ['Engagement ID', 'Engagement Partner']
+                    if 'Billing Amount' in partners.columns:
+                        # Prefer the partner with highest billing amount
+                        partners_sorted = partners.sort_values(by='Billing Amount', ascending=False)
+                        partners_dedup = partners_sorted.dropna(subset=['Engagement Partner']).drop_duplicates(subset=['Engagement ID'])
+                        return partners_dedup[cols_to_keep]
+                    # Otherwise, just drop duplicates and keep first non-null partner
+                    partners_dedup = partners.dropna(subset=['Engagement Partner']).drop_duplicates(subset=['Engagement ID'])
+                    return partners_dedup[cols_to_keep]
+        except Exception:
             continue
-    
-    print(f'Warning: Could not load Engagement Partner data from Bills file', file=sys.stderr)
+    print('Warning: Could not load Engagement Partner data from Bills file', file=sys.stderr)
     return None
 
 
@@ -251,10 +265,17 @@ def load_nui_etd(bob_file: Optional[str]) -> Optional[pd.DataFrame]:
         nui.columns = [str(c).strip() for c in nui.columns]
         if 'Engagement ID' in nui.columns:
             cols = ['Engagement ID']
-            for c in ['NUI ETD', 'Engagement Manager', 'Engagement Status']:
+            for c in ['NUI ETD', 'Engagement Manager', 'Engagement Status', 'Engagement Partner', 'Billing Partner']:
                 if c in nui.columns:
                     cols.append(c)
-            return nui[cols] if len(cols) > 1 else None
+            if len(cols) > 1:
+                df = nui[cols].copy()
+                # Standardize partner column name to a BoB-specific field to avoid merge collisions
+                if 'Engagement Partner' in df.columns:
+                    df.rename(columns={'Engagement Partner': 'Engagement Partner (BoB)'}, inplace=True)
+                elif 'Billing Partner' in df.columns:
+                    df.rename(columns={'Billing Partner': 'Engagement Partner (BoB)'}, inplace=True)
+                return df
         return None
     except Exception as e:
         print(f'Warning: Could not load NUI ETD data: {e}', file=sys.stderr)
