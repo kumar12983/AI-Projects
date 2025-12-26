@@ -8,9 +8,9 @@
   "cleanup_work_directory": false,
   
   "downloads": {
-    "site_name": "YourTeamSite",
-    "folder_path": "Shared Documents/Engagement Analysis/Inputs",
-    "library_name": "Documents",
+    "site_name": "IAGPMO",
+    "folder_path": "Shared Documents/Financial Summary/Weekly Flush",
+    "library_name": "2025-12-08",
     
     "wips_pattern": "WIPs",
     "bills_pattern": "Bills_",
@@ -29,9 +29,9 @@
   },
   
   "uploads": {
-    "site_name": "YourTeamSite",
-    "folder_path": "Shared Documents/Engagement Analysis/Outputs",
-    "library_name": "Documents"
+    "site_name": "IAGPMO",
+    "folder_path": "Shared Documents/Financial Summary",
+    "library_name": "Engagement Summary"
   },
   
   "notification": {
