@@ -163,6 +163,10 @@ def engagement_summary(df: pd.DataFrame,
     cols = ['Engagement ID', 'Engagement Name', 'ANSR / Tech Revenue', 'Margin Cost', 'Margin Amount', 'TER', 'Margin %', 'Hours']
     if 'Engagement Partner' in grp.columns:
         cols.append('Engagement Partner')
+    if 'Engagement Manager' in grp.columns:
+        cols.append('Engagement Manager')
+    if 'Engagement Status' in grp.columns:
+        cols.append('Engagement Status')
     if 'NUI ETD' in grp.columns:
         cols.append('NUI ETD')
 
@@ -170,6 +174,29 @@ def engagement_summary(df: pd.DataFrame,
     
     grp = grp.round(2).sort_values(by='TER', ascending=False)
     return grp
+
+
+def add_totals_and_format(ws) -> None:
+    headers = [cell.value for cell in ws[1]]
+    last_row = ws.max_row
+    ws.cell(row=last_row + 1, column=1).value = 'TOTAL'
+    eng_numeric_cols = ['ANSR / Tech Revenue', 'Margin Cost', 'Margin Amount', 'TER', 'Hours', 'NUI ETD']
+    for col_name in eng_numeric_cols:
+        if col_name in headers:
+            col_idx = headers.index(col_name) + 1
+            col_letter = get_column_letter(col_idx)
+            start_cell = f'{col_letter}2'
+            end_cell = f'{col_letter}{last_row}'
+            ws.cell(row=last_row + 1, column=col_idx).value = f'=SUBTOTAL(9,{start_cell}:{end_cell})'
+
+    if 'NUI ETD' in headers:
+        col_idx = headers.index('NUI ETD') + 1
+        col_letter = get_column_letter(col_idx)
+        data_range = f'{col_letter}2:{col_letter}{last_row}'
+        red_fill = PatternFill(start_color='FFFFC7CE', end_color='FFFFC7CE', fill_type='solid')
+        green_fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
+        ws.conditional_formatting.add(data_range, CellIsRule(operator='greaterThan', formula=['0'], fill=red_fill))
+        ws.conditional_formatting.add(data_range, CellIsRule(operator='lessThan', formula=['0'], fill=green_fill))
 
 
 def employee_level(rank: str, grade: str) -> float:
@@ -196,18 +223,23 @@ def load_engagement_partners(bills_file: Optional[str]) -> Optional[pd.DataFrame
     """Load Engagement Partner mapping from Bills file."""
     if bills_file is None:
         return None
-    try:
-        partners = pd.read_excel(bills_file, sheet_name='Engagement Partners', engine='openpyxl')
-        partners.columns = [str(c).strip() for c in partners.columns]
-        if 'Engagement ID' in partners.columns:
-            # Rename "Billing Partner" to "Engagement Partner" for consistency
-            if 'Billing Partner' in partners.columns:
-                partners.rename(columns={'Billing Partner': 'Engagement Partner'}, inplace=True)
-            return partners[['Engagement ID', 'Engagement Partner']] if 'Engagement Partner' in partners.columns else None
-        return None
-    except Exception as e:
-        print(f'Warning: Could not load Engagement Partner data: {e}', file=sys.stderr)
-        return None
+    
+    # Try "Engagement Partners" sheet first, then "Billing" sheet (from prepare_bills.py)
+    for sheet_name in ['Engagement Partners', 'Billing']:
+        try:
+            partners = pd.read_excel(bills_file, sheet_name=sheet_name, engine='openpyxl')
+            partners.columns = [str(c).strip() for c in partners.columns]
+            if 'Engagement ID' in partners.columns:
+                # Rename "Billing Partner" to "Engagement Partner" for consistency
+                if 'Billing Partner' in partners.columns:
+                    partners.rename(columns={'Billing Partner': 'Engagement Partner'}, inplace=True)
+                if 'Engagement Partner' in partners.columns:
+                    return partners[['Engagement ID', 'Engagement Partner']]
+        except Exception as e:
+            continue
+    
+    print(f'Warning: Could not load Engagement Partner data from Bills file', file=sys.stderr)
+    return None
 
 
 def load_nui_etd(bob_file: Optional[str]) -> Optional[pd.DataFrame]:
@@ -217,8 +249,12 @@ def load_nui_etd(bob_file: Optional[str]) -> Optional[pd.DataFrame]:
     try:
         nui = pd.read_excel(bob_file, sheet_name='Export', engine='openpyxl')
         nui.columns = [str(c).strip() for c in nui.columns]
-        if 'Engagement ID' in nui.columns and 'NUI ETD' in nui.columns:
-            return nui[['Engagement ID', 'NUI ETD']]
+        if 'Engagement ID' in nui.columns:
+            cols = ['Engagement ID']
+            for c in ['NUI ETD', 'Engagement Manager', 'Engagement Status']:
+                if c in nui.columns:
+                    cols.append(c)
+            return nui[cols] if len(cols) > 1 else None
         return None
     except Exception as e:
         print(f'Warning: Could not load NUI ETD data: {e}', file=sys.stderr)
@@ -328,20 +364,20 @@ def run(input_file: str,
     bob_file: Optional[str] = None,
     print_markdown: bool = False) -> Tuple[pd.DataFrame, pd.DataFrame, dict, Optional[dict]]:
 
-    df = load_detail_frame(input_file, detail_sheet, header_row_index)
+    df_raw = load_detail_frame(input_file, detail_sheet, header_row_index)
 
     numeric_cols = ['Charged Hours / Quantity', 'NSR / Tech Revenue', 'ANSR / Tech Revenue', 'Margin Cost', 'Expense Amount']
     for c in numeric_cols:
-        if c not in df.columns:
-            df[c] = 0
+        if c not in df_raw.columns:
+            df_raw[c] = 0
 
-    df = filter_fiscal_year(df, pd.Timestamp(fy_start), pd.Timestamp(fy_end))
-    df = coerce_numeric(df, numeric_cols)
+    df_all = coerce_numeric(df_raw.copy(), numeric_cols)
+    df_fy = filter_fiscal_year(df_all.copy(), pd.Timestamp(fy_start), pd.Timestamp(fy_end))
 
-    # Monthly summary
-    date_col = 'Accounting Date' if 'Accounting Date' in df.columns and df['Accounting Date'].notna().any() else 'Transaction Date'
-    df['Month'] = df[date_col].dt.to_period('M').astype(str)
-    monthly = df.groupby('Month').agg({
+    # Monthly summary (FY window)
+    date_col = 'Accounting Date' if 'Accounting Date' in df_fy.columns and df_fy['Accounting Date'].notna().any() else 'Transaction Date'
+    df_fy['Month'] = df_fy[date_col].dt.to_period('M').astype(str)
+    monthly = df_fy.groupby('Month').agg({
         'Charged Hours / Quantity': 'sum',
         'ANSR / Tech Revenue': 'sum',
         'Margin Cost': 'sum',
@@ -357,9 +393,10 @@ def run(input_file: str,
     partners = load_engagement_partners(bills_file)
     nui_etd = load_nui_etd(bob_file)
 
-    eng = engagement_summary(df, partners, nui_etd)
-    emp = employee_summary(df)
-    totals = kpi_totals(df)
+    eng_fy = engagement_summary(df_fy, partners, nui_etd)
+    eng_etd = engagement_summary(df_all, partners, nui_etd)
+    emp = employee_summary(df_fy)
+    totals = kpi_totals(df_fy)
 
     bridge = None
     if billings_str is not None and target_margin_pct is not None:
@@ -371,7 +408,8 @@ def run(input_file: str,
                             target_margin_pct=float(target_margin_pct))
 
     with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
-        eng.to_excel(writer, sheet_name='Engagement Summary', index=False)
+        eng_fy.to_excel(writer, sheet_name='Engagement Summary (FYTD)', index=False)
+        eng_etd.to_excel(writer, sheet_name='Engagement Summary (ETD)', index=False)
         emp.to_excel(writer, sheet_name='Employee Summary', index=False)
         monthly.to_excel(writer, sheet_name='Monthly Summary', index=False)
         pd.DataFrame([totals]).to_excel(writer, sheet_name='KPI Totals', index=False)
@@ -381,30 +419,10 @@ def run(input_file: str,
     # Add total rows with SUBTOTAL formulas
     wb = load_workbook(output_file)
 
-    # Engagement Summary totals + conditional formatting
-    ws_eng = wb['Engagement Summary']
-    last_row_eng = ws_eng.max_row
-    headers_eng = [cell.value for cell in ws_eng[1]]
-    ws_eng.cell(row=last_row_eng + 1, column=1).value = 'TOTAL'
-    eng_numeric_cols = ['ANSR / Tech Revenue', 'Margin Cost', 'Margin Amount', 'TER', 'Hours', 'NUI ETD']
-    for col_name in eng_numeric_cols:
-        if col_name in headers_eng:
-            col_idx = headers_eng.index(col_name) + 1
-            col_letter = get_column_letter(col_idx)
-            start_cell = f'{col_letter}2'
-            end_cell = f'{col_letter}{last_row_eng}'
-            formula = f'=SUBTOTAL(9,{start_cell}:{end_cell})'
-            ws_eng.cell(row=last_row_eng + 1, column=col_idx).value = formula
-
-    # Conditional formatting for NUI ETD
-    if 'NUI ETD' in headers_eng:
-        col_idx = headers_eng.index('NUI ETD') + 1
-        col_letter = get_column_letter(col_idx)
-        data_range = f'{col_letter}2:{col_letter}{last_row_eng}'
-        red_fill = PatternFill(start_color='FFFFC7CE', end_color='FFFFC7CE', fill_type='solid')  # light red
-        green_fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')  # light green
-        ws_eng.conditional_formatting.add(data_range, CellIsRule(operator='greaterThan', formula=['0'], fill=red_fill))
-        ws_eng.conditional_formatting.add(data_range, CellIsRule(operator='lessThan', formula=['0'], fill=green_fill))
+    # Engagement Summary totals + conditional formatting (both FYTD and ETD)
+    for sheet_name in ['Engagement Summary (FYTD)', 'Engagement Summary (ETD)']:
+        if sheet_name in wb.sheetnames:
+            add_totals_and_format(wb[sheet_name])
 
     # Employee Summary totals
     ws_emp = wb['Employee Summary']
@@ -432,10 +450,10 @@ def run(input_file: str,
 
     if print_markdown:
         print('\n=== Engagement Summary (Top 25 by TER) [Markdown] ===')
-        md = build_markdown_table(eng.head(25))
+        md = build_markdown_table(eng_fy.head(25))
         print(md)
 
-    return eng, emp, totals, bridge
+    return eng_fy, emp, totals, bridge
 
 
 def main():
