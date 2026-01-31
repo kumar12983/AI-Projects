@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Property Research Database</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div>
+                    <h1>Property Research Database</h1>
+                    <p class="subtitle">Search Australian suburbs, postcodes and addresses</p>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    {% if current_user.is_authenticated %}
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="text-align: right;">
+                            <div style="color: #1e3a8a; font-weight: 600; font-size: 14px;">{{ current_user.full_name }}</div>
+                            <div style="color: #999; font-size: 12px;">{{ current_user.tier_name }} Plan</div>
+                        </div>
+                        <a href="/dashboard" style="padding: 10px 16px; background: #1e3a8a; color: white; text-decoration: none; border-radius: 5px; font-weight: 600; transition: all 0.2s; font-size: 14px;" onmouseover="this.style.background='#1e40af'; this.style.boxShadow='0 2px 8px rgba(30,58,138,0.3)'"
+                            onmouseout="this.style.background='#1e3a8a'; this.style.boxShadow='none'">Dashboard</a>
+                        <a href="/logout" style="padding: 10px 16px; background: #dc2626; color: white; text-decoration: none; border-radius: 5px; font-weight: 600; transition: all 0.2s; font-size: 14px;" onmouseover="this.style.background='#b91c1c'; this.style.boxShadow='0 2px 8px rgba(220,38,38,0.3)'"
+                            onmouseout="this.style.background='#dc2626'; this.style.boxShadow='none'">Logout</a>
+                    </div>
+                    {% else %}
+                    <a href="/login" style="padding: 10px 20px; background: #1e3a8a; color: white; text-decoration: none; border-radius: 5px; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background='#1e40af'; this.style.boxShadow='0 2px 8px rgba(30,58,138,0.3)'"
+                        onmouseout="this.style.background='#1e3a8a'; this.style.boxShadow='none'">Login / Sign Up</a>
+                    <a href="/pricing" style="padding: 10px 20px; background: #1e3a8a; color: white; text-decoration: none; border-radius: 5px; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background='#1e40af'; this.style.boxShadow='0 2px 8px rgba(30,58,138,0.3)'"
+                        onmouseout="this.style.background='#1e3a8a'; this.style.boxShadow='none'">Pricing</a> {% endif %}
+                </div>
+            </div>
+        </header>
+
+        <div class="hero-image">
+            <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&h=400&fit=crop&q=80" alt="Australian modern architecture" loading="lazy">
+        </div>
+
+        <nav class="nav-cards">
+            <a href="/search" class="nav-card">
+                <h3>Suburb & Postcode Search</h3>
+                <p>Find suburbs by postcode or postcodes by suburb name</p>
+            </a>
+
+            <a href="/address-lookup" class="nav-card">
+                <h3>Address Lookup</h3>
+                <p>Search for specific addresses and locations</p>
+            </a>
+
+            <a href="/school-search" class="nav-card">
+                <h3>School Catchment Search</h3>
+                <p>Find all addresses within a school catchment area (NSW only)</p>
+            </a>
+        </nav>
+
+        <div class="stats-section" id="stats">
+            <h2>Database Statistics</h2>
+            <div class="stats-grid" id="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">Loading...</div>
+                    <div class="stat-label">Total Localities</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">-</div>
+                    <div class="stat-label">Total Addresses</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">-</div>
+                    <div class="stat-label">Total Streets</div>
+                </div>
+            </div>
+            <div id="state-stats"></div>
+        </div>
+
+        <footer>
+            <p>Powered by GNAF (Geocoded National Address File) Database</p>
+            <p><small>Data from Australian Government</small></p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        // Load statistics on page load
+        window.addEventListener('DOMContentLoaded', async() => {
+                    try {
+                        const response = await fetch('/api/stats');
+                        const stats = await response.json();
+
+                        const statsGrid = document.getElementById('stats-grid');
+                        statsGrid.innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.total_localities?.toLocaleString() || 'N/A'}</div>
+                        <div class="stat-label">Total Localities</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.total_addresses?.toLocaleString() || 'N/A'}</div>
+                        <div class="stat-label">Total Addresses</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.total_streets?.toLocaleString() || 'N/A'}</div>
+                        <div class="stat-label">Total Streets</div>
+                    </div>
+                `;
+
+                        // Display state statistics
+                        if (stats.localities_by_state) {
+                            const stateStats = document.getElementById('state-stats');
+                            stateStats.innerHTML = `
+                        <h3>Localities by State</h3>
+                        <div class="state-list">
+                            ${stats.localities_by_state.map(s => `
+                                <button class="state-item" data-state="${s.state_abbreviation}" onclick="loadStateSuburbs('${s.state_abbreviation}')">
+                                    <span class="state-name">${s.state_abbreviation}</span>
+                                    <span class="state-count">${s.count.toLocaleString()}</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                // Modal for displaying state suburbs
+                const modal = document.createElement('div');
+                modal.id = 'state-modal';
+                modal.className = 'modal';
+                modal.innerHTML = `
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2 id="modal-title">Loading...</h2>
+                            <button class="modal-close" onclick="closeModal()">&times;</button>
+                        </div>
+                        <div id="modal-body" class="modal-body"></div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            } catch (error) {
+                console.error('Error loading statistics:', error);
+                document.getElementById('stats-grid').innerHTML = `
+                    <div class="stat-card error">
+                        <div class="stat-label">Error loading statistics</div>
+                    </div>
+                `;
+            }
+        });
+
+        async function loadStateSuburbs(state) {
+            const modal = document.getElementById('state-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+            
+            modal.classList.add('active');
+            modalTitle.textContent = `${state} - Loading...`;
+            modalBody.innerHTML = '<div class="loading">Loading suburbs...</div>';
+            
+            try {
+                const response = await fetch(`/api/suburbs/by-state?state=${encodeURIComponent(state)}`);
+                const data = await response.json();
+                
+                modalTitle.textContent = `${state} (${data.count.toLocaleString()} Suburbs)`;
+                
+                if (data.suburbs && data.suburbs.length > 0) {
+                    modalBody.innerHTML = `
+                        <div class="modal-search">
+                            <input type="text" id="suburb-filter" placeholder="Search suburbs..." class="search-input">
+                            <span id="filter-count">${data.count.toLocaleString()} results</span>
+                        </div>
+                        <div class="suburbs-table">
+                            <table id="suburbs-table">
+                                <thead>
+                                    <tr>
+                                        <th>Suburb</th>
+                                        <th>Postcode</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.suburbs.map(s => `
+                                        <tr class="clickable-row" data-suburb="${s.suburb}" data-postcode="${s.postcode}">
+                                            <td>${s.suburb}</td>
+                                            <td>${s.postcode}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    
+                    // Add search functionality
+                    const searchInput = document.getElementById('suburb-filter');
+                    const table = document.getElementById('suburbs-table');
+                    const filterCount = document.getElementById('filter-count');
+                    const tbody = table.querySelector('tbody');
+                    const rows = Array.from(tbody.querySelectorAll('tr'));
+                    
+                    searchInput.addEventListener('input', (e) => {
+                        const searchTerm = e.target.value.toLowerCase().trim();
+                        let visibleCount = 0;
+                        
+                        rows.forEach(row => {
+                            const suburb = row.cells[0].textContent.toLowerCase();
+                            const postcode = row.cells[1].textContent.toLowerCase();
+                            
+                            if (suburb.includes(searchTerm) || postcode.includes(searchTerm)) {
+                                row.style.display = '';
+                                visibleCount++;
+                            } else {
+                                row.style.display = 'none';
+                            }
+                        });
+                        
+                        filterCount.textContent = `${visibleCount.toLocaleString()} result${visibleCount !== 1 ? 's' : ''}`;
+                    });
+                    
+                    // Add click handlers for rows
+                    rows.forEach(row => {
+                        row.addEventListener('click', () => {
+                            const suburb = row.dataset.suburb;
+                            const postcode = row.dataset.postcode;
+                            // Navigate to address lookup with pre-filled search
+                            window.location.href = `/address-lookup?suburb=${encodeURIComponent(suburb)}&postcode=${encodeURIComponent(postcode)}&auto=true`;
+                        });
+                    });
+                    
+                    // Focus search input
+                    setTimeout(() => searchInput.focus(), 100);
+                } else {
+                    modalBody.innerHTML = '<p>No suburbs found for this state.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading state suburbs:', error);
+                modalBody.innerHTML = '<p class="error">Error loading suburbs. Please try again.</p>';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('state-modal').classList.remove('active');
+        }
+
+        // Close modal when clicking outside
+        window.addEventListener('click', (e) => {
+            const modal = document.getElementById('state-modal');
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+
+</html>

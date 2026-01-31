@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Address Lookup - Property Research Database</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <meta id="user-auth-status" data-authenticated="{% if current_user.is_authenticated %}true{% else %}false{% endif %}">
+</head>
+
+<body>
+    <div class="container container-wide">
+        <!-- Header with gradient -->
+        <header class="header">
+            <h1>NSW Address Lookup</h1>
+            <p>Search for addresses in the GNAF database</p>
+            <nav class="nav">
+                <a href="/">Home</a>
+                <a href="/search">Suburb Search</a>
+                <a href="/address-lookup" class="active">Address Lookup</a>
+                <a href="/school-search">School Search</a>
+            </nav>
+        </header>
+
+        <div class="hero-image">
+            <img src="https://images.unsplash.com/photo-1582407947304-fd86f028f716?w=1200&h=400&fit=crop&q=80" alt="Street address and residential houses" loading="lazy">
+        </div>
+
+        <!-- Search Section -->
+        <section class="search-section">
+            <div class="search-card">
+                <h2>Search by Address</h2>
+
+                <div class="search-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="street-number-input">Street Number (Optional)</label>
+                            <input type="text" id="street-number-input" placeholder="e.g., 283">
+                        </div>
+                        <div class="form-group">
+                            <label for="street-input">Street Name</label>
+                            <div class="autocomplete-wrapper">
+                                <input type="text" id="street-input" placeholder="e.g., George Street" autocomplete="off">
+                                <div id="street-suggestions" class="autocomplete-suggestions"></div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="suburb-input-addr">Suburb</label>
+                            <div class="autocomplete-wrapper">
+                                <input type="text" id="suburb-input-addr" placeholder="e.g., Sydney" autocomplete="off">
+                                <div id="suburb-suggestions" class="autocomplete-suggestions"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="postcode-input-addr">Postcode</label>
+                            <input type="text" id="postcode-input-addr" placeholder="e.g., 2000" maxlength="4">
+                        </div>
+                        <div class="form-group">
+                            <label for="state-input">State</label>
+                            <select id="state-input">
+                                <option value="">All States</option>
+                                <option value="NSW">NSW</option>
+                                <option value="VIC">VIC</option>
+                                <option value="QLD">QLD</option>
+                                <option value="SA">SA</option>
+                                <option value="WA">WA</option>
+                                <option value="TAS">TAS</option>
+                                <option value="NT">NT</option>
+                                <option value="ACT">ACT</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="limit-input">Results Limit</label>
+                            <select id="limit-input">
+                                <option value="20">20</option>
+                                <option value="50" selected>50</option>
+                                <option value="100">100</option>
+                                <option value="200">200</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button id="address-search-btn" class="btn btn-primary">Search Addresses</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section class="results-section">
+            <div id="address-results" class="results-card"></div>
+        </section>
+    </div>
+
+    <!-- Property Viewer Modal -->
+    <div id="property-modal" class="property-modal">
+        <div class="property-modal-content">
+            <div class="property-modal-header">
+                <h3 id="property-modal-title">Property Listing</h3>
+                <button class="modal-close" onclick="closePropertyModal()">&times;</button>
+            </div>
+            <div class="property-modal-body">
+                <iframe id="property-iframe" frameborder="0" allowfullscreen></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/address.js') }}"></script>
+</body>
+
+</html>

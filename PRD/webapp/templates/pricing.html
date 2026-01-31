@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing - Property Research Database</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f0f4f8;
+        }
+        
+        nav {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 60px;
+            border-bottom: 4px solid #1e3a8a;
+        }
+        
+        nav h1 {
+            color: #1e3a8a;
+            font-size: 20px;
+            margin: 0;
+        }
+        
+        nav a {
+            color: #1e3a8a;
+            text-decoration: none;
+            margin-left: 20px;
+            font-weight: 500;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+        
+        .header h1 {
+            font-size: 42px;
+            color: #1e3a8a;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 18px;
+            color: #666;
+        }
+        
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            max-width: 900px;
+            margin: 0 auto 60px;
+        }
+        
+        .pricing-card {
+            background: whi8px;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            position: relative;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border-top: 4px solid #1e3a8a;
+            border: 2px solid #dbeafe;
+            border-top: 4px solid #1e3a8a;
+        }
+        
+        .pricing-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+        }
+        
+        .pricing-card.premium {
+            border: 2px solid #1e3a8a;
+            border-top: 4px solid #1e3a8a;
+            box-shadow: 0 8px 24px rgba(30, 58, 138, 0.15);
+            transform: scale(1.05);
+        }
+        
+        .badge {
+            position: absolute;
+            top: -15px;
+            right: 30px;
+            background: #1e3a8a;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .plan-name {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1e3a8a;
+            margin-bottom: 10px;
+        }
+        
+        .price {
+            font-size: 48px;
+            font-weight: bold;
+            color: #1e3a8a;
+            margin-bottom: 5px;
+        }
+        
+        .price span {
+            font-size: 18px;
+            color: #999;
+        }
+        
+        .price-period {
+            color: #999;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        
+        .features {
+            list-style: none;
+            margin-bottom: 30px;
+        }
+        
+        .features li {
+            padding: 12px 0;
+            color: #555;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .features li:last-child {
+            border-bottom: none;
+        }
+        
+        .check {
+            color: #10b981;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        
+        .cross {
+            color: #ccc;
+            margin-right: 10px;
+        }
+        
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            text-align: center;
+            background: #1e3a8a;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: #1e40af;
+            box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #f5f7fa;
+            color: #667eea;
+        }
+    </style>
+</head>
+
+<body>
+    <nav>
+        <a href="/" style="text-decoration: none; display: flex; flex-direction: column; gap: 5px;">
+            <h1 style="margin: 0; color: #1e3a8a; font-size: 20px; font-weight: 700;">Property Research Database</h1>
+            <span style="color: #999; font-size: 13px; margin: 0;">Search Australian suburbs, postcodes and addresses</span>
+        </a>
+        <div>
+            <a href="/" style="color: #1e3a8a; text-decoration: none; font-weight: 500; transition: all 0.2s;" onmouseover="this.style.color='#1e40af'" onmouseout="this.style.color='#1e3a8a'">Home</a>
+            <a href="/login" style="color: #1e3a8a; text-decoration: none; font-weight: 500; margin-left: 20px; transition: all 0.2s;" onmouseover="this.style.color='#1e40af'" onmouseout="this.style.color='#1e3a8a'">Login</a>
+            <a href="/register" style="color: #1e3a8a; text-decoration: none; font-weight: 500; margin-left: 20px; transition: all 0.2s;" onmouseover="this.style.color='#1e40af'" onmouseout="this.style.color='#1e3a8a'">Sign Up</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="header">
+            <h1 style="color: #1e3a8a;">Choose Your Plan</h1>
+            <p>Start free, upgrade when you need more.</p>
+        </div>
+
+        <div class="pricing-grid">
+            <!-- Free Plan -->
+            <div class="pricing-card">
+                <div class="plan-name">Free</div>
+                <div class="price">$0<span>/month</span></div>
+                <div class="price-period">Perfect to get started</div>
+
+                <ul class="features">
+                    <li><span class="check">✓</span>Unlimited searches</li>
+                    <li><span class="check">✓</span>Suburb & postcode lookup</li>
+                    <li><span class="check">✓</span>Address search</li>
+                    <li><span class="check">✓</span>School catchment search</li>
+                    <li><span class="cross">✗</span>Export data</li>
+                    <li><span class="cross">✗</span>Advanced analytics</li>
+                </ul>
+
+                <a href="/register" class="btn btn-secondary">Get Started Free</a>
+            </div>
+
+            <!-- Premium Plan -->
+            <div class="pricing-card premium">
+                <span class="badge">COMING SOON</span>
+                <div class="plan-name">Premium</div>
+                <div class="price">$9.99<span>/month</span></div>
+                <div class="price-period">For power users</div>
+
+                <ul class="features">
+                    <li><span class="check">✓</span><strong>Everything in Free</strong></li>
+                    <li><span class="check">✓</span>Export to CSV/Excel</li>
+                    <li><span class="check">✓</span>Advanced analytics & insights</li>
+                    <li><span class="check">✓</span>Batch search API access</li>
+                    <li><span class="check">✓</span>Priority email support</li>
+                    <li><span class="check">✓</span>No ads</li>
+                </ul>
+
+                <a href="/register" class="btn">Coming Soon - Pre-register</a>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

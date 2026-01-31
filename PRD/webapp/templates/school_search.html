@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School Catchment Search - GNAF Address Lookup</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        .btn-page {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            font-size: 0.9rem;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        
+        .btn-page:hover:not(:disabled) {
+            background: #f0f0f0;
+            border-color: var(--primary-color);
+        }
+        
+        .btn-page.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+            font-weight: bold;
+        }
+        
+        .btn-page:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        
+        .page-ellipsis {
+            padding: 8px 4px;
+            color: #999;
+        }
+        
+        .rankings-banner:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2) !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header with gradient -->
+        <header class="header">
+            <h1>NSW School Catchment Search</h1>
+            <p>Find all addresses within a school catchment area</p>
+            <nav class="nav">
+                <a href="/">Home</a>
+                <a href="/search">Suburb Search</a>
+                <a href="/address-lookup">Address Lookup</a>
+                <a href="/school-search" class="active">School Search</a>
+            </nav>
+        </header>
+
+        <div class="hero-image">
+            <img src="https://images.unsplash.com/photo-1509062522246-3755977927d7?w=1200&h=400&fit=crop&q=80" alt="School building exterior" loading="lazy">
+        </div>
+
+        <!-- Search Section -->
+        <section class="search-section">
+            <!-- Featured Article Banner -->
+            <a href="/school-rankings" style="display: block; text-decoration: none; margin-bottom: var(--spacing-lg);" class="rankings-banner">
+                <div style="position: relative; border-radius: var(--border-radius); overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); transition: transform 0.3s ease, box-shadow 0.3s ease;">
+                    <img src="https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?w=1200&h=300&fit=crop" alt="Students studying in library" style="width: 100%; height: 200px; object-fit: cover; display: block;">
+                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, rgba(30, 58, 138, 0.85) 0%, rgba(30, 58, 138, 0.65) 100%); display: flex; align-items: center; justify-content: center; padding: var(--spacing-lg);">.
+
+                        <div style="text-align: center; color: white;">
+                            <div style="display: inline-block; background: rgba(255, 255, 255, 0.2); padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase; letter-spacing: 1px;">
+                                📚 New Resource
+                            </div>
+                            <h3 style="font-size: 1.75rem; font-weight: 600; margin: var(--spacing-sm) 0; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);">
+                                NSW School Rankings Guide 2025
+                            </h3>
+                            <p style="font-size: 1rem; margin: 0; opacity: 0.95;">
+                                Complete rankings for selective, independent & primary schools with HSC & NAPLAN results →
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </a>
+
+            <div class="search-card">
+                <h2>Search by School</h2>
+
+                <form id="schoolSearchForm" class="search-form">
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 3;">
+                            <label for="schoolInput">School Name</label>
+                            <div class="autocomplete-wrapper">
+                                <input type="text" id="schoolInput" placeholder="Start typing school name (min. 3 characters)..." autocomplete="off" required>
+                                <div id="schoolSuggestions" class="autocomplete-dropdown"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Search School</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Loading Indicator -->
+        <div id="loadingIndicator" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+        </div>
+
+        <!-- School Info Section (Hidden initially) -->
+        <section id="schoolInfoSection" class="school-info-section" style="display: none;">
+            <div class="school-info-card">
+                <div class="school-header">
+                    <h2 id="schoolName">-</h2>
+                    <span id="schoolTypeBadge" class="badge">PRIMARY</span>
+                </div>
+                <div class="school-details">
+                    <div class="detail-item">
+                        <span class="detail-label">Year Levels:</span>
+                        <span id="yearLevels">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">School Type:</span>
+                        <span id="schoolType">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">School Sector:</span>
+                        <span id="schoolSector">-</span>
+                    </div>
+                    <div class="detail-item" id="schoolUrl-container" style="display: none;">
+                        <span class="detail-label">Website:</span>
+                        <a id="schoolUrl" href="#" target="_blank" class="school-url-link">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="display: inline; margin-right: 6px; vertical-align: middle;">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                                <path d="M2 12h20"></path>
+                            </svg>
+                            <span id="schoolUrlText" style="color: white;">-</span>
+                        </a>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Catchment Priority:</span>
+                        <span id="catchmentPriority">-</span>
+                    </div>
+                    <div class="detail-item" id="icsea-container" style="display: none;">
+                        <span class="detail-label">ICSEA Score:</span>
+                        <span id="icsea">-</span>
+                    </div>
+                    <div class="detail-item" id="icsea-percentile-container" style="display: none;">
+                        <span class="detail-label">ICSEA Percentile:</span>
+                        <span id="icsea-percentile">-</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Map Section (Hidden initially) -->
+        <section id="mapSection" class="map-section" style="display: none;">
+            <div class="map-card">
+                <h3>Catchment Boundary</h3>
+                <div id="catchmentMap" style="height: 400px; border-radius: 4px; overflow: hidden;"></div>
+            </div>
+        </section>
+
+        <!-- Address Search Section (Hidden initially) -->
+        <section id="addressSearchSection" class="filter-section" style="display: none;">
+            <div class="filter-card">
+                <h3>Search Addresses in Catchment</h3>
+                <p style="color: #666; margin-bottom: 15px;">Search for specific addresses within this school's catchment boundary</p>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="searchStreetNumber">Street Number (Optional)</label>
+                        <input type="text" id="searchStreetNumber" placeholder="e.g., 53">
+                    </div>
+                    <div class="form-group" style="flex: 2;">
+                        <label for="searchStreet">Street Name</label>
+                        <div class="autocomplete-wrapper">
+                            <input type="text" id="searchStreet" placeholder="e.g., George Street" autocomplete="off">
+                            <div id="search-street-suggestions" class="autocomplete-suggestions"></div>
+                        </div>
+                    </div>
+                    <div class="form-group" style="flex: 2;">
+                        <label for="searchSuburb">Suburb</label>
+                        <div class="autocomplete-wrapper">
+                            <input type="text" id="searchSuburb" placeholder="e.g., Sydney" autocomplete="off">
+                            <div id="search-suburb-suggestions" class="autocomplete-suggestions"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="searchPostcode">Postcode</label>
+                        <input type="text" id="searchPostcode" placeholder="e.g., 2000" maxlength="4">
+                    </div>
+                    <div class="form-group">
+                        <label for="searchState">State</label>
+                        <select id="searchState">
+                            <option value="">All States</option>
+                            <option value="NSW" selected>NSW</option>
+                            <option value="VIC">VIC</option>
+                            <option value="QLD">QLD</option>
+                            <option value="SA">SA</option>
+                            <option value="WA">WA</option>
+                            <option value="TAS">TAS</option>
+                            <option value="NT">NT</option>
+                            <option value="ACT">ACT</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="searchLimit">Results Limit</label>
+                        <select id="searchLimit">
+                            <option value="20">20</option>
+                            <option value="50" selected>50</option>
+                            <option value="100">100</option>
+                            <option value="200">200</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 0 0 200px;">
+                        <button type="button" id="searchAddressBtn" class="btn btn-primary">Search Addresses</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Section (Hidden initially) -->
+        <section id="resultsSection" class="results-section" style="display: none;">
+            <div class="results-card">
+                <div id="searchResults"></div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2026 GNAF Address Lookup | Data source: <a href="https://data.gov.au" target="_blank">Data.gov.au</a></p>
+        </footer>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/school.js') }}"></script>
+</body>
+
+</html>

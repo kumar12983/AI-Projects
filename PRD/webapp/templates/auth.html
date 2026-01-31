@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login / Sign Up - Property Research Database</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            background: #f0f4f8;
+        }
+        
+        .auth-container {
+            max-width: 450px;
+            margin: 60px auto;
+            padding: 0 20px;
+        }
+        
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 20px;
+            border-top: 4px solid #1e3a8a;
+        }
+        
+        .toggle-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #dbeafe;
+        }
+        
+        .toggle-btn {
+            flex: 1;
+            padding: 12px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #999;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+        }
+        
+        .toggle-btn.active {
+            color: #1e3a8a;
+            border-bottom-color: #1e3a8a;
+        }
+        
+        .toggle-btn:hover {
+            color: #1e3a8a;
+        }
+        
+        h1 {
+            color: #1e3a8a;
+            margin-bottom: 10px;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #1a1a1a;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        input[type="text"],
+        input[type="email"],
+        input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #dbeafe;
+            border-radius: 6px;
+            font-size: 15px;
+            transition: border 0.3s;
+            font-family: inherit;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #1e3a8a;
+            box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: #1e3a8a;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: #1e40af;
+            box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
+        }
+        
+        .error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .success {
+            background: #efe;
+            border: 1px solid #cfc;
+            color: #3c3;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .form-section {
+            display: none;
+        }
+        
+        .form-section.active {
+            display: block;
+        }
+        
+        .feature-list {
+            background: #f0f4f8;
+            padding: 20px;
+            border-radius: 6px;
+            margin-top: 20px;
+            border-left: 4px solid #1e3a8a;
+        }
+        
+        .feature-list h3 {
+            font-size: 14px;
+            color: #1e3a8a;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .feature-list ul {
+            list-style: none;
+        }
+        
+        .feature-list li {
+            padding: 5px 0;
+            color: #666;
+            font-size: 13px;
+        }
+        
+        .feature-list li:before {
+            content: "✓ ";
+            color: #10b981;
+            font-weight: bold;
+        }
+        
+        header {
+            background: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+            margin-bottom: 40px;
+            border-bottom: 4px solid #1e3a8a;
+        }
+        
+        header h1 {
+            color: #1e3a8a;
+            font-size: 24px;
+            margin-bottom: 5px;
+            font-weight: 700;
+        }
+        
+        header p {
+            color: #999;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <a href="/" style="text-decoration: none;">
+                <h1>Property Research Database</h1>
+                <p style="color: #999; font-size: 14px; margin: 0;">Search Australian suburbs, postcodes and addresses</p>
+            </a>
+            <div style="display: flex; gap: 10px;">
+                <a href="/" style="padding: 8px 16px; background: #1e3a8a; color: white; text-decoration: none; border-radius: 5px; font-weight: 600; font-size: 14px; transition: all 0.2s;" onmouseover="this.style.background='#1e40af'; this.style.boxShadow='0 2px 8px rgba(30,58,138,0.3)'"
+                    onmouseout="this.style.background='#1e3a8a'; this.style.boxShadow='none'">Home</a>
+                <a href="/pricing" style="padding: 8px 16px; background: #1e3a8a; color: white; text-decoration: none; border-radius: 5px; font-weight: 600; font-size: 14px; transition: all 0.2s;" onmouseover="this.style.background='#1e40af'; this.style.boxShadow='0 2px 8px rgba(30,58,138,0.3)'"
+                    onmouseout="this.style.background='#1e3a8a'; this.style.boxShadow='none'">Pricing</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="auth-container">
+        <div class="card">
+            <div class="toggle-tabs">
+                <button class="toggle-btn active" onclick="switchTab('login')">Login</button>
+                <button class="toggle-btn" onclick="switchTab('register')">Sign Up</button>
+            </div>
+
+            <!-- LOGIN FORM -->
+            <div id="login" class="form-section active">
+                <h1>Welcome Back</h1>
+                <p class="subtitle">Log in to your account</p>
+
+                <div id="login-error" class="error" style="display:none;"></div>
+
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="login-email">Email Address</label>
+                        <input type="email" id="login-email" name="email" required autocomplete="email">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="login-password">Password</label>
+                        <input type="password" id="login-password" name="password" required autocomplete="current-password">
+                    </div>
+
+                    <button type="submit" class="btn">Log In</button>
+                </form>
+            </div>
+
+            <!-- REGISTER FORM -->
+            <div id="register" class="form-section">
+                <h1>Create Account</h1>
+                <p class="subtitle">Start with free access to property data</p>
+
+                <div id="register-error" class="error" style="display:none;"></div>
+                <div id="register-success" class="success" style="display:none;"></div>
+
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="register-name">Full Name</label>
+                        <input type="text" id="register-name" name="full_name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="register-email">Email Address</label>
+                        <input type="email" id="register-email" name="email" required autocomplete="email">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="register-password">Password</label>
+                        <input type="password" id="register-password" name="password" required minlength="6" autocomplete="new-password">
+                    </div>
+
+                    <button type="submit" class="btn">Create Free Account</button>
+                </form>
+
+                <div class="feature-list">
+                    <h3>Free Account Includes:</h3>
+                    <ul>
+                        <li>Unlimited searches</li>
+                        <li>Suburb & postcode lookups</li>
+                        <li>Address lookups</li>
+                        <li>School catchment search</li>
+                        <li>No credit card required</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tab) {
+            // Hide all sections
+            document.getElementById('login').classList.remove('active');
+            document.getElementById('register').classList.remove('active');
+
+            // Remove active class from all buttons
+            document.querySelectorAll('.toggle-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected section
+            document.getElementById(tab).classList.add('active');
+
+            // Add active class to clicked button
+            event.target.classList.add('active');
+
+            // Clear error messages
+            document.getElementById('login-error').style.display = 'none';
+            document.getElementById('register-error').style.display = 'none';
+            document.getElementById('register-success').style.display = 'none';
+        }
+
+        // Login form handler
+        document.getElementById('loginForm').addEventListener('submit', async(e) => {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const errorDiv = document.getElementById('login-error');
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    window.location.href = data.redirect || '/dashboard';
+                } else {
+                    errorDiv.textContent = data.error || 'Login failed';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'An error occurred. Please try again.';
+                errorDiv.style.display = 'block';
+            }
+        });
+
+        // Register form handler
+        document.getElementById('registerForm').addEventListener('submit', async(e) => {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const errorDiv = document.getElementById('register-error');
+            const successDiv = document.getElementById('register-success');
+
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+
+            try {
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    successDiv.textContent = data.message || 'Registration successful! Redirecting to login...';
+                    successDiv.style.display = 'block';
+                    setTimeout(() => {
+                        document.getElementById('registerForm').reset();
+                        switchTab('login');
+                        document.getElementById('registerForm').reset();
+                    }, 2000);
+                } else {
+                    errorDiv.textContent = data.message || data.error || 'Registration failed';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'An error occurred. Please try again.';
+                errorDiv.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+
+</html>

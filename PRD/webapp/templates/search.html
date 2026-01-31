@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suburb & Postcode Search - Property Research Database</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Suburb & Postcode Search</h1>
+            <a href="/" class="back-link" style="color: var(--primary-color); text-decoration: none; font-size: 0.95rem;">← Back to Home</a>
+        </header>
+
+        <div class="hero-image">
+            <img src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1200&h=400&fit=crop&q=80" alt="Suburban neighborhood aerial view" loading="lazy">
+        </div>
+
+        <div class="search-container">
+            <div class="search-tabs">
+                <button class="tab-button active" data-tab="postcode">Search by Postcode</button>
+                <button class="tab-button" data-tab="suburb">Search by Suburb</button>
+            </div>
+
+            <!-- Search by Postcode Tab -->
+            <div id="postcode-tab" class="tab-content active">
+                <div class="search-form">
+                    <input type="text" id="postcode-input" placeholder="Enter postcode (e.g., 2000)" maxlength="4" pattern="[0-9]{4}">
+                    <button id="postcode-search-btn" class="btn btn-primary">Search</button>
+                </div>
+                <div id="postcode-results" class="results"></div>
+            </div>
+
+            <!-- Search by Suburb Tab -->
+            <div id="suburb-tab" class="tab-content">
+                <div class="search-form">
+                    <input type="text" id="suburb-input" placeholder="Enter suburb name (e.g., Sydney)" autocomplete="off">
+                    <button id="suburb-search-btn" class="btn btn-primary">Search</button>
+                </div>
+                <div id="suburb-autocomplete" class="autocomplete-results"></div>
+                <div id="suburb-results" class="results"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/search.js') }}"></script>
+</body>
+
+</html>

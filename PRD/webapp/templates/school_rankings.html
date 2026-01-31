@@ -1,0 +1,838 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Top Performing Schools in NSW - School Rankings Guide</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Momo&display=swap">
+    <style>
+        .article-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .article-header {
+            text-align: center;
+            margin-bottom: var(--spacing-2xl);
+            padding: var(--spacing-2xl) var(--spacing-xl);
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.9) 0%, rgba(30, 58, 138, 0.75) 100%), url('https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1200&h=400&fit=crop') center/cover;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e0e0e0;
+            position: relative;
+            color: white;
+        }
+        
+        .article-header h1,
+        .article-header .subtitle,
+        .article-header .nav a {
+            color: white;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .article-header .nav a {
+            border-color: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .article-header .nav a:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: white;
+        }
+        
+        .article-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #1e3a8a, #3b82f6);
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+        }
+        
+        .article-content {
+            background: var(--white);
+            padding: var(--spacing-xl);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            margin-bottom: var(--spacing-lg);
+        }
+        
+        .article-content h2 {
+            color: var(--primary-color);
+            font-size: 1.75rem;
+            font-weight: 400;
+            margin-top: var(--spacing-xl);
+            margin-bottom: var(--spacing-md);
+            border-bottom: 2px solid var(--primary-light);
+            padding-bottom: var(--spacing-sm);
+            position: relative;
+            padding-left: var(--spacing-md);
+        }
+        
+        .article-content h2::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 70%;
+            background: var(--primary-color);
+            border-radius: 2px;
+        }
+        
+        .article-content h3 {
+            color: var(--text-primary);
+            font-size: 1.35rem;
+            font-weight: 500;
+            margin-top: var(--spacing-lg);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .article-content p {
+            line-height: 1.8;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .article-content ul,
+        .article-content ol {
+            margin-bottom: var(--spacing-md);
+            padding-left: var(--spacing-xl);
+        }
+        
+        .article-content li {
+            line-height: 1.8;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .school-category {
+            background: var(--gray-50);
+            padding: var(--spacing-lg);
+            border-radius: var(--border-radius);
+            margin-bottom: var(--spacing-lg);
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .school-list {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .school-list li {
+            background: var(--white);
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-sm);
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+            transition: var(--transition);
+        }
+        
+        .school-list li:hover {
+            box-shadow: var(--shadow-sm);
+            transform: translateX(4px);
+        }
+        
+        .school-name {
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 1.05rem;
+        }
+        
+        .school-details {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+        
+        .info-box {
+            background: var(--primary-light);
+            border-left: 4px solid var(--primary-color);
+            padding: var(--spacing-md) var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+            border-radius: var(--border-radius);
+        }
+        
+        .info-box h4 {
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: var(--spacing-sm);
+            font-size: 1.1rem;
+        }
+        
+        .info-box p {
+            margin-bottom: 0;
+        }
+        
+        .back-nav {
+            text-align: center;
+            margin-top: var(--spacing-xl);
+            padding-top: var(--spacing-lg);
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .back-nav a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+            padding: var(--spacing-sm) var(--spacing-lg);
+            border: 1px solid var(--primary-color);
+            border-radius: var(--border-radius);
+            transition: var(--transition);
+            display: inline-block;
+        }
+        
+        .back-nav a:hover {
+            background: var(--primary-color);
+            color: var(--white);
+        }
+        
+        .highlight {
+            background: linear-gradient(120deg, rgba(196, 18, 48, 0.1) 0%, rgba(196, 18, 48, 0.05) 100%);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+        
+        .stats-highlight {
+            display: inline-block;
+            background: var(--primary-color);
+            color: var(--white);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .section-hero {
+            width: 100%;
+            height: 350px;
+            object-fit: cover;
+            border-radius: var(--border-radius);
+            margin: var(--spacing-xl) 0 var(--spacing-lg) 0;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+        }
+        
+        .image-caption {
+            text-align: center;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-top: calc(-1 * var(--spacing-sm));
+            margin-bottom: var(--spacing-lg);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container article-container">
+        <div class="article-header">
+            <nav class="nav" style="margin-bottom: var(--spacing-lg);">
+                <a href="/">Home</a>
+                <a href="/search">Suburb Search</a>
+                <a href="/address-lookup">Address Lookup</a>
+                <a href="/school-search">School Search</a>
+            </nav>
+            <h1>Top Performing Schools in NSW</h1>
+            <p class="subtitle">A Comprehensive Guide to NSW's Best Primary and Secondary Schools</p>
+            <p style="font-family: 'Momo', cursive; font-size: 1.1rem; margin-top: var(--spacing-lg); font-style: italic; opacity: 0.95; max-width: 700px; margin-left: auto; margin-right: auto;">
+                "Everything we hear is an opinion, not a fact. Everything we see is a perspective, not the truth." — Marcus Aurelius
+            </p>
+        </div>
+
+        <div class="article-content">
+            <p>
+                Choosing the right school for your child is one of the most important decisions parents make. New South Wales is home to some of Australia's best-performing schools, with both government and independent institutions consistently achieving outstanding
+                academic results.
+            </p>
+
+            <h2>Understanding School Rankings & Performance Metrics</h2>
+
+            <p>
+                School performance in Australia is measured through multiple frameworks and assessment tools. Understanding these metrics helps parents make informed decisions when choosing a school.
+            </p>
+
+            <div class="school-category">
+                <h3>Key Performance Indicators</h3>
+
+                <h4 style="color: var(--text-primary); margin-top: var(--spacing-md);">HSC Results (Year 12)</h4>
+                <p style="margin-bottom: var(--spacing-md);">
+                    The <strong>Higher School Certificate (HSC)</strong> is the primary measure of secondary school academic achievement in NSW. School rankings often focus on:
+                </p>
+                <ul style="margin-bottom: var(--spacing-md);">
+                    <li><strong>Band 6 achievements:</strong> Percentage of students scoring 90+ in individual subjects</li>
+                    <li><strong>All-rounders:</strong> Students achieving Band 6 in 10 or more units</li>
+                    <li><strong>Top achievers:</strong> Students with ATAR scores above 99, 95, and 90</li>
+                    <li><strong>Distinguished Achievers List (DAL):</strong> Number of Band 6 results across all subjects</li>
+                    <li><strong>Median ATAR:</strong> Middle ATAR score of the cohort, indicating overall performance</li>
+                </ul>
+                <p style="margin-bottom: var(--spacing-md); font-style: italic; color: var(--text-muted);">
+                    <strong>Note:</strong> Elite selective schools like James Ruse typically achieve 70-90% of students with ATARs above 90, compared to the state average of approximately 20%. Top independent schools often achieve 50-70% of students above
+                    90 ATAR.
+                </p>
+
+                <h4 style="color: var(--text-primary); margin-top: var(--spacing-md);">NAPLAN Results (Years 3, 5, 7, 9)</h4>
+                <p style="margin-bottom: var(--spacing-md);">
+                    <strong>National Assessment Program – Literacy and Numeracy (NAPLAN)</strong> tests are conducted nationally and measure student performance in:
+                </p>
+                <ul style="margin-bottom: var(--spacing-md);">
+                    <li>Reading</li>
+                    <li>Writing</li>
+                    <li>Spelling</li>
+                    <li>Grammar and Punctuation</li>
+                    <li>Numeracy</li>
+                </ul>
+                <p style="margin-bottom: var(--spacing-md);">
+                    Results are reported in bands, with higher bands indicating stronger performance. Schools are compared based on the percentage of students achieving in the top two bands and the average improvement (growth) between year levels. NAPLAN is particularly
+                    important for assessing primary school performance.
+                </p>
+
+                <h4 style="color: var(--text-primary); margin-top: var(--spacing-md);">ICSEA - Index of Community Socio-Educational Advantage</h4>
+                <p style="margin-bottom: var(--spacing-md);">
+                    <strong>ICSEA</strong> is a scale created by ACARA that enables meaningful comparisons of test achievement by students in schools across Australia. The average ICSEA value is 1000.
+                </p>
+                <ul style="margin-bottom: var(--spacing-md);">
+                    <li><strong>Above 1100:</strong> Very high socio-educational advantage (typical of selective and elite independent schools)</li>
+                    <li><strong>1000-1100:</strong> Above average advantage (many comprehensive and independent schools)</li>
+                    <li><strong>900-1000:</strong> Average to slightly below average</li>
+                    <li><strong>Below 900:</strong> Lower socio-educational advantage</li>
+                </ul>
+                <p style="margin-bottom: var(--spacing-md); font-style: italic; color: var(--text-muted);">
+                    <strong>Example:</strong> James Ruse Agricultural High School has an ICSEA of ~1200+, while top independent schools like Pymble Ladies' College or Knox Grammar typically range 1150-1180. ICSEA helps contextualize performance - a school
+                    with ICSEA 950 achieving strong NAPLAN growth may be performing excellently relative to its context.
+                </p>
+
+                <h4 style="color: var(--text-primary); margin-top: var(--spacing-md);">Value-Add & Student Growth</h4>
+                <p style="margin-bottom: var(--spacing-md);">
+                    Increasingly, schools are assessed not just on raw results but on <strong>value-add</strong> - the improvement students make during their time at the school:
+                </p>
+                <ul style="margin-bottom: var(--spacing-md);">
+                    <li><strong>NAPLAN Growth:</strong> Improvement from Year 3 to 5, and Year 7 to 9</li>
+                    <li><strong>HSC performance vs. NAPLAN baseline:</strong> How students perform in Year 12 relative to their Year 9 NAPLAN results</li>
+                    <li><strong>Expected vs. Actual ATAR:</strong> Comparing predicted ATARs to actual outcomes</li>
+                </ul>
+                <p style="margin-bottom: var(--spacing-md);">
+                    Schools with strong value-add metrics demonstrate effective teaching and learning programs that help students exceed expected outcomes.
+                </p>
+
+                <h4 style="color: var(--text-primary); margin-top: var(--spacing-md);">University Outcomes</h4>
+                <p style="margin-bottom: var(--spacing-md);">
+                    Elite schools are also measured by:
+                </p>
+                <ul>
+                    <li>Percentage of students receiving university offers</li>
+                    <li>Acceptance into prestigious courses (Medicine, Law, Engineering)</li>
+                    <li>Acceptance into Group of Eight universities</li>
+                    <li>Scholarship recipients (academic, leadership, sports)</li>
+                </ul>
+            </div>
+
+            <div class="info-box">
+                <h4>Where to Find Official Rankings Data</h4>
+                <p style="margin-bottom: var(--spacing-sm);">
+                    <strong>My School (myschool.edu.au):</strong> Official ACARA website with NAPLAN results, ICSEA values, financial information, and student demographics for every Australian school.
+                </p>
+                <p style="margin-bottom: var(--spacing-sm);">
+                    <strong>NSW Education Standards Authority (NESA):</strong> Publishes HSC results including Distinguished Achievers List and top-performing schools by subject.
+                </p>
+                <p style="margin-bottom: 0;">
+                    <strong>Better Education:</strong> Independent ranking site that compiles HSC and NAPLAN data into comparative rankings, though some data requires principal authorization to publish.
+                </p>
+            </div>
+
+            <h2>Top Selective High Schools in NSW</h2>
+
+            <img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=1200&h=350&fit=crop&auto=format&q=80" alt="High school graduate celebrating success" class="section-hero" loading="lazy">
+            <p class="image-caption">Excellence in education: NSW high schools preparing students for success</p>
+
+            <p>
+                NSW's selective high schools are renowned for their academic excellence. Entry is highly competitive, with students required to sit the <span class="highlight">Selective High School 
+                Placement Test</span> in Year 6.
+            </p>
+
+            <div class="info-box">
+                <h4>Selective School Performance Context</h4>
+                <p>
+                    Selective schools consistently dominate HSC rankings. <strong>James Ruse Agricultural High School</strong> has ranked #1 in NSW for over 25 consecutive years, with typically 50-60% of students achieving ATARs above 99. Other top selective
+                    schools regularly achieve 40-90% of students scoring ATARs above 95. ICSEA values for fully selective schools typically exceed 1180, with many above 1200, reflecting the academically high-achieving student cohort.
+                </p>
+            </div>
+
+            <div class="school-category">
+                <h3>Elite Selective Schools (Fully Selective)</h3>
+                <p style="margin-bottom: var(--spacing-md); font-size: 0.95rem;">
+                    These schools admit students solely based on the Selective High School Placement Test. They represent the highest-achieving government schools in NSW, with median ATARs typically 98-99+.
+                </p>
+                <ul class="school-list">
+                    <li>
+                        <div class="school-name"><a href="https://northsydbo-h.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">North Sydney Boys High School</a></div>
+                        <div class="school-details">Location: Crows Nest | <strong>Ranked #1 in 2025</strong> | 71.6% Band 6 success rate | Top-tier HSC results, excellent co-curricular programs</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://jamesruse-h.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">James Ruse Agricultural High School</a></div>
+                        <div class="school-details">Location: Carlingford | <strong>Ranked #2 in 2025</strong> | 70.4% Band 6 success rate | Consistently top-ranked for over 25 years</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://northsydgi-h.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">North Sydney Girls High School</a></div>
+                        <div class="school-details">Location: Crows Nest | <strong>Ranked #4 in 2025</strong> | 60.5% Band 6 success rate | Outstanding academic performance, strong STEM focus</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://normanhurb-h.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Normanhurst Boys High School</a></div>
+                        <div class="school-details">Location: Normanhurst | <strong>Ranked #5 in 2025</strong> | 57.7% Band 6 success rate | Fully selective boys school, strong academic culture</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://sydneyboys-h.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Sydney Boys High School</a></div>
+                        <div class="school-details">Location: Moore Park | <strong>Ranked #6 in 2025</strong> | 54.2% Band 6 success rate | Strong academic reputation, comprehensive sports program</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://baulkham-h.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Baulkham Hills High School</a></div>
+                        <div class="school-details">Location: Baulkham Hills | <strong>Ranked #7 in 2025</strong> | 51.5% Band 6 success rate | Consistently high academic achievement</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://hornsbygir-h.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Hornsby Girls High School</a></div>
+                        <div class="school-details">Location: Hornsby | <strong>Ranked #8 in 2025</strong> | 51.1% Band 6 success rate | Excellent HSC results, supportive learning environment</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://sydneygirl-h.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Sydney Girls High School</a></div>
+                        <div class="school-details">Location: Surry Hills | <strong>Ranked #13 in 2025</strong> | 44.2% Band 6 success rate | Historic school with exceptional academic tradition</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://fortstreet-h.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Fort Street High School</a></div>
+                        <div class="school-details">Location: Petersham | <strong>Ranked #20 in 2025</strong> | 40.2% Band 6 success rate | NSW's oldest selective school, strong academic heritage</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://girraween-h.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Girraween High School</a></div>
+                        <div class="school-details">Location: Girraween | <strong>Ranked #26 in 2025</strong> | 37.8% Band 6 success rate | Western Sydney selective school with strong results</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://hurlstone-h.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Hurlstone Agricultural High School</a></div>
+                        <div class="school-details">Location: Glenfield | <strong>Ranked #43 in 2025</strong> | 29.4% Band 6 success rate | Selective agricultural school with boarding facilities</div>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="info-box">
+                <h4>2025 HSC Rankings Note</h4>
+                <p style="margin-bottom: 0;">
+                    Rankings are based on <strong>HSC Success Rate</strong> - the percentage of Band 6 results (90+) out of total exam entries. Data sourced from <a href="https://www.matrix.edu.au/2025-high-school-rankings/" target="_blank" style="color: var(--primary-color); font-weight: 600;">Matrix Education 2025 High School Rankings</a>,
+                    which compiles publicly available HSC results data. Rankings may vary year to year based on cohort performance.
+                </p>
+            </div>
+
+            <h2>Top Independent/Private Schools</h2>
+
+            <img src="https://images.unsplash.com/photo-1509062522246-3755977927d7?w=1200&h=350&fit=crop" alt="Independent school campus with historic architecture" class="section-hero">
+            <p class="image-caption">Excellence and tradition: Independent schools offering world-class education</p>
+
+            <p>
+                Independent schools in NSW offer diverse educational philosophies, excellent facilities, and comprehensive co-curricular programs. Many consistently achieve outstanding HSC results.
+            </p>
+
+            <div class="info-box">
+                <h4>Independent School Performance Context</h4>
+                <p style="margin-bottom: var(--spacing-sm);">
+                    Top independent schools typically have ICSEA values ranging from 1120-1180, reflecting high socio-educational advantage. Elite independent schools often achieve 40-60% of students with ATARs above 95, and 60-80% above 90.
+                </p>
+                <p style="margin-bottom: var(--spacing-sm);">
+                    <strong>Key Differentiators:</strong> Beyond academic results, independent schools are often evaluated on:
+                </p>
+                <ul style="margin-bottom: 0;">
+                    <li><strong>Co-curricular excellence:</strong> Premier sports programs, music conservatoriums, drama productions</li>
+                    <li><strong>Facilities:</strong> State-of-the-art science labs, performing arts centers, sports complexes</li>
+                    <li><strong>Global programs:</strong> International exchange programs, overseas tours, global partnerships</li>
+                    <li><strong>Individual attention:</strong> Smaller class sizes, pastoral care programs, personalized learning</li>
+                    <li><strong>Alumni networks:</strong> Strong old boys/girls networks supporting career development</li>
+                </ul>
+            </div>
+
+            <div class="school-category">
+                <h3>Leading Independent Schools - Girls</h3>
+                <ul class="school-list">
+                    <li>
+                        <div class="school-name">Abbotsleigh</div>
+                        <div class="school-details">Location: Wahroonga | K-12 | Anglican | <strong>Ranked #11 in 2025</strong> | 45.6% Band 6 | Excellent academic and pastoral care</div>
+                    </li>
+                    <li>
+                        <div class="school-name">Ascham School</div>
+                        <div class="school-details">Location: Edgecliff | K-12 | Anglican | <strong>Ranked #12 in 2025</strong> | 45.4% Band 6 | Elite girls school, exceptional results</div>
+                    </li>
+                    <li>
+                        <div class="school-name">Pymble Ladies' College</div>
+                        <div class="school-details">Location: Pymble | K-12 | Uniting Church | <strong>Ranked #18 in 2025</strong> | 40.6% Band 6 | Strong academic tradition, large cohort</div>
+                    </li>
+                    <li>
+                        <div class="school-name">SCEGGS Darlinghurst</div>
+                        <div class="school-details">Location: Darlinghurst | K-12 | Anglican | <strong>Ranked #21 in 2025</strong> | 39.0% Band 6 | Inner-city location, excellent results</div>
+                    </li>
+                    <li>
+                        <div class="school-name">Kambala</div>
+                        <div class="school-details">Location: Rose Bay | K-12 | Anglican | <strong>Ranked #36 in 2025</strong> | 33.7% Band 6 | Strong academic performance</div>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="school-category">
+                <h3>Leading Independent Schools - Boys</h3>
+                <ul class="school-list">
+                    <li>
+                        <div class="school-name">Sydney Grammar School</div>
+                        <div class="school-details">Location: Darlinghurst | K-12 | Anglican | <strong>Ranked #3 in 2025</strong> | 61.0% Band 6 | One of the highest-performing independent schools</div>
+                    </li>
+                    <li>
+                        <div class="school-name">Knox Grammar School</div>
+                        <div class="school-details">Location: Wahroonga | K-12 | Uniting Church | <strong>Ranked #29 in 2025</strong> | 36.0% Band 6 | Strong academic and sports programs, large cohort</div>
+                    </li>
+                    <li>
+                        <div class="school-name">The King's School</div>
+                        <div class="school-details">Location: North Parramatta | K-12 | Anglican | <strong>Ranked #42 in 2025</strong> | 30.8% Band 6 | Australia's oldest independent school</div>
+                    </li>
+                    <li>
+                        <div class="school-name">Cranbrook School</div>
+                        <div class="school-details">Location: Bellevue Hill | K-12 | Anglican | <strong>Ranked #47 in 2025</strong> | 28.4% Band 6 | Eastern suburbs, strong traditions</div>
+                    </li>
+                    <li>
+                        <div class="school-name">Barker College</div>
+                        <div class="school-details">Location: Hornsby | K-12 | Anglican | <strong>Ranked #50 in 2025</strong> | 27.5% Band 6 | Excellent facilities and academic results</div>
+                    </li>
+                    <li>
+                        <div class="school-name">St Joseph's College</div>
+                        <div class="school-details">Location: Hunters Hill | Years 5-12 | Catholic | <strong>Ranked #72 in 2025</strong> | 22.5% Band 6 | Strong academic tradition</div>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="school-category">
+                <h3>Leading Independent Schools - Co-educational</h3>
+                <ul class="school-list">
+                    <li>
+                        <div class="school-name">Reddam House</div>
+                        <div class="school-details">Location: Woollahra/Bondi | ELC-12 | Non-denominational | <strong>Ranked #10 in 2025</strong> | 47.0% Band 6 | IB and HSC programs, outstanding results</div>
+                    </li>
+                    <li>
+                        <div class="school-name">St Aloysius' College</div>
+                        <div class="school-details">Location: Milsons Point | Years 3-12 | Catholic | <strong>Ranked #9 in 2025</strong> | 48.0% Band 6 | Elite co-ed Jesuit school</div>
+                    </li>
+                    <li>
+                        <div class="school-name">Newington College</div>
+                        <div class="school-details">Location: Stanmore | K-12 | Uniting Church | <strong>Ranked #53 in 2025</strong> | 26.3% Band 6 | Progressive education, excellent results</div>
+                    </li>
+                    <li>
+                        <div class="school-name">Kincoppal-Rose Bay</div>
+                        <div class="school-details">Location: Rose Bay | K-12 | Catholic | <strong>Ranked #73 in 2025</strong> | 22.4% Band 6 | Strong academic program</div>
+                    </li>
+                </ul>
+            </div>
+
+            <h2>Top Performing Government (Public) High Schools</h2>
+            <p>
+                Many comprehensive government high schools achieve excellent results and provide quality education without selective entry requirements.
+            </p>
+
+            <div class="info-box">
+                <h4>Comprehensive School Performance Context</h4>
+                <p style="margin-bottom: var(--spacing-sm);">
+                    Comprehensive public high schools serve all students in their catchment area, making their achievements particularly noteworthy. Top comprehensive schools typically have ICSEA values of 1050-1120 and achieve 20-40% of students with ATARs above 90.
+                </p>
+                <p style="margin-bottom: 0;">
+                    <strong>Value-add is critical:</strong> Many comprehensive schools demonstrate excellent student growth, taking students from average NAPLAN scores in Year 7 to strong HSC results in Year 12. Schools in high-ICSEA catchment areas (like
+                    Mosman, Killara) benefit from community support and resources, while schools in lower-ICSEA areas showing strong growth demonstrate exceptional teaching quality.
+                </p>
+            </div>
+
+            <div class="school-category">
+                <h3>Outstanding Comprehensive Public Schools</h3>
+                <ul class="school-list">
+                    <li>
+                        <div class="school-name"><a href="https://northernbeaches-s.schools.nsw.gov.au/manly-campus" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Northern Beaches Secondary College Manly Campus</a></div>
+                        <div class="school-details">Location: North Curl Curl | Comprehensive | <strong>Ranked #25 in 2025</strong> | 38.0% Band 6 | Highest-performing comprehensive school</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://merewether-h.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Merewether High School</a></div>
+                        <div class="school-details">Location: Newcastle | Comprehensive | <strong>Ranked #22 in 2025</strong> | 38.7% Band 6 | Outstanding comprehensive school in Newcastle</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://killara-h.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Killara High School</a></div>
+                        <div class="school-details">Location: Killara | Comprehensive | <strong>Ranked #141 in 2025</strong> | 13.3% Band 6 | Consistently high HSC results</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://cheltenham-h.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Cheltenham Girls High School</a></div>
+                        <div class="school-details">Location: Beecroft | Partially selective | Excellent academic reputation</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://mosman-h.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Mosman High School</a></div>
+                        <div class="school-details">Location: Mosman | Comprehensive | Strong community support</div>
+                    </li>
+                </ul>
+            </div>
+
+            <h2>Top Primary Schools in NSW</h2>
+
+            <img src="https://images.unsplash.com/photo-1588072432836-e10032774350?w=1200&h=350&fit=crop" alt="Happy family walking children to school" class="section-hero">
+            <p class="image-caption">Building foundations: Choosing the right primary school for your family</p>
+
+            <p>
+                Primary school choices are typically based on catchment areas for public schools, while private schools have their own enrollment processes.
+            </p>
+
+            <div class="info-box">
+                <h4>Primary School Performance Metrics</h4>
+                <p style="margin-bottom: var(--spacing-sm);">
+                    <strong>NAPLAN is the primary measure</strong> for primary school academic performance, as students don't sit HSC exams. Key indicators include:
+                </p>
+                <ul style="margin-bottom: var(--spacing-sm);">
+                    <li><strong>Year 3 & 5 NAPLAN results:</strong> Percentage of students in top two bands (Bands 5-6 for Year 3, Bands 7-8 for Year 5)</li>
+                    <li><strong>Growth from Year 3 to Year 5:</strong> Average student improvement over two years</li>
+                    <li><strong>Reading & numeracy focus:</strong> Particular emphasis on these foundational skills</li>
+                    <li><strong>Selective/OC placement rates:</strong> Percentage of Year 6 students gaining selective high school or Opportunity Class places</li>
+                </ul>
+                <p style="margin-bottom: var(--spacing-sm);">
+                    <strong>Opportunity Classes (OC):</strong> Selective classes for academically gifted students in Years 5-6, available at select public primary schools. Entry via OC Placement Test in Year 4. These programs typically achieve 80-95%
+                    of students in top NAPLAN bands.
+                </p>
+                <p style="margin-bottom: 0;">
+                    Top primary schools in affluent areas (ICSEA 1100-1150) often achieve 50-70% of students in top two NAPLAN bands, compared to state averages of ~25%. However, schools showing strong growth from lower starting points may demonstrate superior teaching effectiveness.
+                </p>
+            </div>
+
+            <div class="school-category">
+                <h3>Outstanding Government Primary Schools (with OC Programs)</h3>
+                <ul class="school-list">
+                    <li>
+                        <div class="school-name"><a href="https://mattpearce-p.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Matthew Pearce Public School</a></div>
+                        <div class="school-details">Location: Baulkham Hills | K-6 | OC program | <strong>NAPLAN Avg: 541.0</strong> | #1 public primary school, culturally diverse, exceptional technology and facilities</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://beecroft-p.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Beecroft Public School</a></div>
+                        <div class="school-details">Location: Beecroft | K-6 | OC program | <strong>NAPLAN Avg: 537.7</strong> | Upper North Shore, strong selective placement rate, 855 students</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://artarmon-p.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Artarmon Public School</a></div>
+                        <div class="school-details">Location: Artarmon | K-6 | OC program | <strong>NAPLAN Avg: 534.0</strong> | Excellent selective placement, 1,195 students, Lower North Shore</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://woollahra-p.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Woollahra Public School</a></div>
+                        <div class="school-details">Location: Woollahra | K-6 | OC program | <strong>NAPLAN Avg: 530.0</strong> | Eastern suburbs, 710 students, high ICSEA catchment</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://carlingfow-p.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Carlingford West Public School</a></div>
+                        <div class="school-details">Location: Carlingford | K-6 | OC program | <strong>NAPLAN Avg: 523.9</strong> | Large school (1,817 students), strong academic extension programs</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://hurstville-p.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Hurstville Public School</a></div>
+                        <div class="school-details">Location: Hurstville | K-6 | OC program | <strong>NAPLAN Avg: 512.8</strong> | Culturally diverse, 1,118 students</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://sutherland-p.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Sutherland Public School</a></div>
+                        <div class="school-details">Location: Sutherland | K-6 | OC program | <strong>NAPLAN Avg: 502.7</strong> | Shire area, 340 students</div>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="school-category">
+                <h3>Top Non-OC Government Primary Schools</h3>
+                <ul class="school-list">
+                    <li>
+                        <div class="school-name"><a href="https://hornsbynth-p.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Hornsby North Public School</a></div>
+                        <div class="school-details">Location: Hornsby | K-6 | <strong>NAPLAN Avg: 532.3</strong> | Excellent balance of academics and community, feeds into Hornsby Girls High School</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://stivesnth-p.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">St Ives North Public School</a></div>
+                        <div class="school-details">Location: St Ives | K-6 | <strong>NAPLAN Avg: 527.7</strong> | 871 students, Upper North Shore area</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://lanecove-p.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Lane Cove Public School</a></div>
+                        <div class="school-details">Location: Lane Cove | K-6 | Small school, strong community, high ICSEA</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://nsydney-p.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">North Sydney Public School</a></div>
+                        <div class="school-details">Location: North Sydney | K-6 | Central location, academic focus, convenient transport</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://mosman-p.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Mosman Public School</a></div>
+                        <div class="school-details">Location: Mosman | K-6 | Excellent facilities and programs, Lower North Shore</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://chatswood-p.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Chatswood Public School</a></div>
+                        <div class="school-details">Location: Chatswood | K-6 | Consistently strong NAPLAN performance, diverse community</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://lindfield-p.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Lindfield Public School</a></div>
+                        <div class="school-details">Location: Lindfield | K-6 | High achieving, excellent NAPLAN growth metrics</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://pymble-p.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Pymble Public School</a></div>
+                        <div class="school-details">Location: Pymble | K-6 | Strong academic focus, high ICSEA catchment</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://neutralbay-p.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Neutral Bay Public School</a></div>
+                        <div class="school-details">Location: Neutral Bay | K-6 | Lower North Shore, consistently high performance</div>
+                    </li>
+                    <li>
+                        <div class="school-name"><a href="https://gordoneast-p.schools.nsw.gov.au/" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 600;">Gordon East Public School</a></div>
+                        <div class="school-details">Location: Gordon | K-6 | Small school, strong NAPLAN results</div>
+                    </li>
+                </ul>
+            </div>
+
+
+
+            <div class="school-category">
+                <h3>Leading Independent Primary Schools - Boys</h3>
+                <ul class="school-list">
+                    <li>
+                        <div class="school-name">Sydney Grammar School (Primary)</div>
+                        <div class="school-details">Location: Darlinghurst | K-12 | Selective | <strong>NAPLAN Avg: 595.5</strong> | #1 primary school in Sydney, exceptional facilities, $34,119/year</div>
+                    </li>
+                    <li>
+                        <div class="school-name">Knox Grammar School (Primary)</div>
+                        <div class="school-details">Location: Wahroonga | K-12 | <strong>NAPLAN Avg: 544.5</strong> | Strong STEM focus, large cohort (3,268 students), $27,360/year</div>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="school-category">
+                <h3>Leading Independent Primary Schools - Girls</h3>
+                <ul class="school-list">
+                    <li>
+                        <div class="school-name">Abbotsleigh (Primary)</div>
+                        <div class="school-details">Location: Wahroonga | K-12 | Selective | <strong>NAPLAN Avg: 553.1</strong> | Elite girls school, excellent sport programs, $28,290/year</div>
+                    </li>
+                    <li>
+                        <div class="school-name">Pymble Ladies' College (Primary)</div>
+                        <div class="school-details">Location: Pymble | K-12 | <strong>NAPLAN Avg: 546.6</strong> | Strong academics and sports (IGSA top 3), 2,377 students, $27,344/year</div>
+                    </li>
+                    <li>
+                        <div class="school-name">Meriden School (Primary)</div>
+                        <div class="school-details">Location: Strathfield | K-12 | <strong>NAPLAN Avg: 541.3</strong> | Strong performing arts program, 1,647 students, $25,700/year</div>
+                    </li>
+                    <li>
+                        <div class="school-name">Ascham School (Primary)</div>
+                        <div class="school-details">Location: Edgecliff | K-12 | <strong>NAPLAN Avg: 532.7</strong> | Elite Eastern suburbs school, 1,185 students, $20,500/year</div>
+                    </li>
+                    <li>
+                        <div class="school-name">Kambala (Primary)</div>
+                        <div class="school-details">Location: Rose Bay | K-12 | <strong>NAPLAN Avg: 527.4</strong> | Eastern suburbs, 984 students, $36,925/year</div>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="school-category">
+                <h3>Leading Independent Primary Schools - Co-educational</h3>
+                <ul class="school-list">
+                    <li>
+                        <div class="school-name">Northcross Christian School (Primary)</div>
+                        <div class="school-details">Location: Ryde | K-6 | <strong>NAPLAN Avg: 547.2</strong> | Non-selective Christian school, exceptional value, 377 students, $7,336/year</div>
+                    </li>
+                    <li>
+                        <div class="school-name">St Aloysius' College (Primary)</div>
+                        <div class="school-details">Location: Milsons Point | Years 3-12 | Selective | <strong>NAPLAN Avg: 545.2</strong> | Elite Jesuit school, 1,299 students, $21,576/year</div>
+                    </li>
+                    <li>
+                        <div class="school-name">Arden Anglican School (Primary)</div>
+                        <div class="school-details">Location: Beecroft | K-12 | <strong>NAPLAN Avg: 544.6</strong> | Strong academics, 979 students, $18,844/year</div>
+                    </li>
+                    <li>
+                        <div class="school-name">John Colet School</div>
+                        <div class="school-details">Location: Belrose | K-6 | <strong>NAPLAN Avg: 540.7</strong> | Small school (276 students), $16,010/year</div>
+                    </li>
+                    <li>
+                        <div class="school-name">Reddam House (Primary)</div>
+                        <div class="school-details">Location: Bondi | ELC-12 | Progressive IB education, strong academics</div>
+                    </li>
+                    <li>
+                        <div class="school-name">Ascham School (Junior)</div>
+                        <div class="school-details">Location: Edgecliff | Girls | Strong foundation program</div>
+                    </li>
+                    <li>
+                        <div class="school-name">Cranbrook School (Junior)</div>
+                        <div class="school-details">Location: Bellevue Hill | Boys | Excellent preparatory program</div>
+                    </li>
+                </ul>
+            </div>
+
+            <h2>Key Factors to Consider When Choosing a School</h2>
+            <div class="info-box">
+                <h4>Important Considerations</h4>
+                <ul>
+                    <li><strong>Academic Performance:</strong> HSC results, NAPLAN scores, university admission rates</li>
+                    <li><strong>Location & Catchment:</strong> Proximity to home, transport options, catchment boundaries</li>
+                    <li><strong>School Culture:</strong> Values, teaching philosophy, student wellbeing programs</li>
+                    <li><strong>Facilities:</strong> Libraries, laboratories, sports facilities, technology</li>
+                    <li><strong>Co-curricular Programs:</strong> Sports, music, drama, debating, clubs</li>
+                    <li><strong>Class Sizes:</strong> Student-teacher ratios, individual attention</li>
+                    <li><strong>Special Programs:</strong> Gifted & talented, learning support, languages</li>
+                    <li><strong>Cost:</strong> Fees for private schools, uniforms, excursions, equipment</li>
+                </ul>
+            </div>
+
+            <h2>Important Dates & Processes</h2>
+            <p>
+                <strong>Selective High School Test:</strong> Usually held in March for Year 6 students seeking Year 7 entry the following year.
+            </p>
+            <p>
+                <strong>Opportunity Class Test:</strong> Held in July-August for Year 4 students seeking Year 5 entry the following year.
+            </p>
+            <p>
+                <strong>Private School Enrollment:</strong> Many schools require registration 2-3 years in advance. Some conduct entrance assessments and interviews.
+            </p>
+            <p>
+                <strong>Public School Catchment:</strong> Check the NSW Department of Education website to find your local catchment school based on your address.
+            </p>
+
+            <div class="info-box">
+                <h4>Pro Tip: Use Our School Catchment Tool</h4>
+                <p>
+                    Our <strong>School Catchment Search</strong> tool allows you to find all addresses within a specific school's catchment area. This is invaluable for families considering a move to access a particular school, or for real estate research
+                    in high-performing school zones.
+                </p>
+            </div>
+
+            <h2>📈 School Performance Data Sources</h2>
+            <p>
+                To research school performance further, consider these resources:
+            </p>
+            <ul>
+                <li><strong>My School:</strong> Official ACARA website with NAPLAN results and school profiles</li>
+                <li><strong>NSW Education Standards Authority:</strong> HSC results and assessment data</li>
+                <li><strong>Better Education:</strong> School rankings and comparison tools</li>
+                <li><strong>Good Schools Guide:</strong> Independent school reviews and information</li>
+                <li><strong>School Websites:</strong> Direct information about programs, facilities, and achievements</li>
+            </ul>
+
+            <div class="info-box">
+                <h4>Important Disclaimer</h4>
+                <p>
+                    Rankings and performance data should be just one factor in your decision-making process. The best school for your child depends on their individual needs, learning style, interests, and your family's values. We recommend visiting schools, attending open
+                    days, and speaking with current families before making a final decision.
+                </p>
+            </div>
+
+            <h2>School Catchments and Property Decisions</h2>
+            <p>
+                School catchment zones can significantly impact property values. Areas within the catchment of high-performing schools often command premium prices. Our address and catchment search tools can help you:
+            </p>
+            <ul>
+                <li>Verify if a property falls within a specific school catchment</li>
+                <li>Explore all addresses within a desired school zone</li>
+                <li>Research multiple schools when considering different suburbs</li>
+                <li>Make informed property decisions based on education priorities</li>
+            </ul>
+
+            <p style="margin-top: var(--spacing-xl); text-align: center; font-size: 1.1rem; color: var(--text-primary);">
+                <strong>Remember:</strong> The best school is one where your child will thrive academically, socially, and emotionally. Consider visiting schools and speaking with principals, teachers, and current families as part of your research process.
+            </p>
+
+            <div class="back-nav">
+                <a href="/school-search">← Return to School Catchment Search</a>
+                <a href="/" style="margin-left: var(--spacing-md);">Home</a>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
