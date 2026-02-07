@@ -1,0 +1,23 @@
+__pycache__/
+*.py[cod]
+*.pyo
+# Byte-compiled / optimized / DLL files
+*.pyc
+
+# Byte-compiled folders
+__pycache__/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+venv/
+ENV/
+.venv/
+
+# Editor directories
+.vscode/
+.idea/
+PRD/database/setup/query_explorer.pgsql
