@@ -101,3 +101,20 @@ SELECT
     COUNT(acara_sml_id) as matched_with_profile,
     COUNT(DISTINCT state) as states_covered
 FROM gnaf.school_type_lookup;
+
+
+ALTER TABLE gnaf.school_type_lookup
+ADD COLUMN acara_url TEXT;
+
+ALTER TABLE gnaf.school_type_lookup
+ADD COLUMN naplan_url TEXT;
+
+UPDATE gnaf.school_type_lookup
+  SET acara_url = 'https://myschool.edu.au/school/'||acara_sml_id::text
+WHERE acara_sml_id IS NOT NULL
+ ;
+
+ UPDATE gnaf.school_type_lookup
+  SET naplan_url = 'https://myschool.edu.au/school/'||acara_sml_id::text||'/naplan/results'
+WHERE acara_sml_id IS NOT NULL
+;

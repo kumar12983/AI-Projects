@@ -125,3 +125,19 @@ set school_id = '8592'
 , school_name = 'Cherrybrook Technology High School'
 , catchment_school_name = 'Cherrybrook THS'
 where acara_sml_id = 41350;
+
+ALTER TABLE gnaf.school_type_lookup
+ADD COLUMN acara_url TEXT;
+
+ALTER TABLE gnaf.school_type_lookup
+ADD COLUMN naplan_url TEXT;
+
+UPDATE gnaf.school_type_lookup
+  SET acara_url = 'https://myschool.edu.au/school/'||acara_sml_id::text
+WHERE acara_sml_id IS NOT NULL
+ ;
+
+ UPDATE gnaf.school_type_lookup
+  SET naplan_url = 'https://myschool.edu.au/school/'||acara_sml_id::text||'/naplan/results'
+WHERE acara_sml_id IS NOT NULL
+;
