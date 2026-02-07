@@ -65,6 +65,39 @@ ON public.school_catchment_addresses(school_type);
 -- Analyze the materialized view for query optimization
 ANALYZE public.school_catchment_addresses;
 
+-- Drop existing materialized view if it exists
+DROP MATERIALIZED VIEW IF EXISTS public.school_catchment_streets CASCADE;
+
+CREATE MATERIALIZED VIEW public.school_catchment_streets AS
+select DISTINCT ca.school_id
+, st.street_name
+, st.street_type_code
+, st.street_suffix_code
+, l.locality_name
+, l.postcode 
+from public.school_catchment_addresses ca 
+INNER JOIN address_detail ad on ca.address_detail_pid = ad.address_detail_pid
+INNER JOIN street_locality st on st.street_locality_pid = ad.street_locality_pid 
+INNER JOIN locality_postcodes l on ad.locality_pid = l.locality_pid
+;
+
+-- Create indexes for fast lookups
+CREATE INDEX idx_school_catchment_street_school_id 
+ON public.school_catchment_streets(school_id);
+
+CREATE INDEX idx_school_catchment_street_locality_name 
+ON public.school_catchment_streets(locality_name);
+
+CREATE INDEX idx_school_catchment_street_name 
+ON public.school_catchment_streets(street_name);
+
+CREATE INDEX idx_school_catchment_street_postcode   
+ON public.school_catchment_streets(postcode);
+
+-- Analyze the materialized view for query optimization
+ANALYZE public.school_catchment_streets
+
+
 -- Display statistics
 SELECT 
     school_type,
@@ -84,3 +117,4 @@ SELECT
     'Total distinct schools' as metric,
     COUNT(DISTINCT school_id) as count
 FROM public.school_catchment_addresses;
+--
