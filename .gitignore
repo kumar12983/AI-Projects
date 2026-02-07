@@ -21,3 +21,6 @@ ENV/
 .vscode/
 .idea/
 PRD/database/setup/query_explorer.pgsql
+tmp_dea_hotspots_wms.xml
+PRD/webapp/ga_services.json
+scripts/output_2077_multi.json
