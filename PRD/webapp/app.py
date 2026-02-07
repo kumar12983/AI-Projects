@@ -656,14 +656,17 @@ def get_school_info(school_id):
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         print(f"[DEBUG] Fetching info for school_id={school_id}")
         
-        # Get school info from catchments
+        # Get school info - prioritize school_type_lookup coordinates, fallback to catchments centroid
         cursor.execute("""
             SELECT DISTINCT
-                school_id,
-                school_name,
-                school_type
-            FROM gnaf.school_catchments
-            WHERE school_id::text = %s
+                s.school_id,
+                s.school_name,
+                s.school_type,
+                COALESCE(pf.latitude, s.school_lat) as school_latitude,
+                COALESCE(pf.longitude, s.school_lng) as school_longitude
+            FROM gnaf.school_catchments s
+            LEFT JOIN gnaf.school_type_lookup pf ON pf.school_id = s.school_id
+            WHERE s.school_id::text = %s
             LIMIT 1
         """, (str(school_id),))
         
@@ -688,6 +691,8 @@ def get_school_info(school_id):
                 icsea,
                 icsea_percentile,
                 school_url,
+                acara_url,
+                naplan_url,
                 suburb,
                 state,
                 postcode
@@ -795,6 +800,8 @@ def get_school_info(school_id):
             'school_sector': lookup_info['school_sector'] if lookup_info else None,
             'school_type_name': lookup_info['school_type'] if lookup_info else None,
             'school_url': lookup_info['school_url'] if lookup_info else None,
+            'acara_url': lookup_info['acara_url'] if lookup_info else None,
+            'naplan_url': lookup_info['naplan_url'] if lookup_info else None,
             'priority': None,
             'year_levels': ', '.join(year_levels) if year_levels else 'N/A',
             'address_count': stats['address_count'] if stats else 0,
@@ -804,7 +811,14 @@ def get_school_info(school_id):
                 'suburb': lookup_info['suburb'] if lookup_info else None,
                 'state': lookup_info['state'] if lookup_info else None,
                 'postcode': lookup_info['postcode'] if lookup_info else None
-            } if lookup_info else None
+            } if lookup_info else None,
+            'school_location': {
+                'latitude': catchment_info.get('school_latitude'),
+                'longitude': catchment_info.get('school_longitude'),
+                'suburb': lookup_info['suburb'] if lookup_info else None,
+                'state': lookup_info['state'] if lookup_info else None,
+                'postcode': lookup_info['postcode'] if lookup_info else None
+            } if (catchment_info.get('school_latitude') and catchment_info.get('school_longitude')) else None
         }
         
         print(f"[DEBUG] Returning result: {result}")
@@ -823,11 +837,19 @@ def get_school_info(school_id):
 @login_required
 def get_school_addresses(school_id):
     """
-    Get all addresses within a school catchment
-    Example: /api/school/2060/addresses?limit=500&offset=0
+    Get addresses within a school catchment with optional search filters
+    Example: /api/school/2060/addresses?limit=500&offset=0&street=Burdett&suburb=Hornsby
     """
     limit = request.args.get('limit', '500')
     offset = request.args.get('offset', '0')
+    
+    # Get optional search filters
+    street_number = request.args.get('street_number', '').strip()
+    street = request.args.get('street', '').strip()
+    suburb = request.args.get('suburb', '').strip()
+    postcode = request.args.get('postcode', '').strip()
+    state = request.args.get('state', '').strip()
+    
     try:
         limit = int(limit)
         offset = int(offset)
@@ -842,13 +864,14 @@ def get_school_addresses(school_id):
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # First, get school location (already computed in the table)
+        # Get school location - prioritize school_type_lookup coordinates, fallback to catchments table
         cursor.execute("""
             SELECT 
-                school_lat,
-                school_lng
-            FROM gnaf.school_catchments
-            WHERE school_id = %s
+                COALESCE(pf.latitude, s.school_lat) as school_lat,
+                COALESCE(pf.longitude, s.school_lng) as school_lng
+            FROM gnaf.school_catchments s
+            LEFT JOIN gnaf.school_type_lookup pf ON pf.school_id = s.school_id
+            WHERE s.school_id = %s
             LIMIT 1
         """, (school_id,))
         
@@ -861,10 +884,45 @@ def get_school_addresses(school_id):
         school_lat = school_location['school_lat']
         school_lng = school_location['school_lng']
         
+        print(f"[DEBUG] School location for school_id={school_id}:")
+        print(f"  school_lat: {school_lat}")
+        print(f"  school_lng: {school_lng}")
+        
+        # Build WHERE clause for optional filters
+        filter_conditions = []
+        filter_params = []
+        
+        if street_number:
+            filter_conditions.append("ad.number_first::text ILIKE %s")
+            filter_params.append(f'%{street_number}%')
+        
+        if street:
+            filter_conditions.append("sl.street_name ILIKE %s")
+            filter_params.append(f'%{street}%')
+        
+        if suburb:
+            filter_conditions.append("l.locality_name ILIKE %s")
+            filter_params.append(f'%{suburb}%')
+        
+        if postcode:
+            filter_conditions.append("ad.postcode = %s")
+            filter_params.append(postcode)
+        
+        if state:
+            filter_conditions.append("s.state_abbreviation ILIKE %s")
+            filter_params.append(state)
+        
+        additional_where = ""
+        if filter_conditions:
+            additional_where = "AND " + " AND ".join(filter_conditions)
+        
         # Get addresses in catchment with DISTINCT ON to eliminate duplicates
-        query = """
+        query = f"""
             WITH school_catchment AS (
                 SELECT geometry FROM gnaf.school_catchments WHERE school_id = %s
+            ),
+            school_point AS (
+                SELECT ST_SetSRID(ST_MakePoint(%s, %s), 4326) as geom
             )
             SELECT DISTINCT ON (ad.address_detail_pid)
                 ad.address_detail_pid as gnaf_id,
@@ -887,8 +945,11 @@ def get_school_addresses(school_id):
                 COALESCE(ad.number_last_suffix || ' ', '') ||
                 COALESCE(sl.street_name || ' ', '') ||
                 COALESCE(st.name || ' ', '') as full_address,
-                ad.number_first as street_number,
-                COALESCE(ad.flat_number::text, '') as unit_number,
+                ad.number_first,
+                ad.number_first_suffix,
+                ad.number_last,
+                ad.number_last_suffix,
+                COALESCE(ad.flat_number::text, '') as flat_number,
                 sl.street_name,
                 st.name as street_type,
                 l.locality_name as suburb,
@@ -897,7 +958,11 @@ def get_school_addresses(school_id):
                 agc.latitude,
                 agc.longitude,
                 agc.geocode_type_code,
-                ad.confidence
+                ad.confidence,
+                ROUND(CAST(ST_Distance(
+                    ST_SetSRID(ST_MakePoint(agc.longitude, agc.latitude), 4326)::geography,
+                    sp.geom::geography
+                ) / 1000.0 AS numeric), 2) as distance_km
             FROM gnaf.address_detail ad
             JOIN gnaf.address_default_geocode agc ON ad.address_detail_pid = agc.address_detail_pid
             JOIN gnaf.street_locality sl ON ad.street_locality_pid = sl.street_locality_pid
@@ -906,21 +971,26 @@ def get_school_addresses(school_id):
             LEFT JOIN gnaf.street_type_aut st ON sl.street_type_code = st.code
             LEFT JOIN gnaf.flat_type_aut ft ON ad.flat_type_code = ft.code
             CROSS JOIN school_catchment sc
+            CROSS JOIN school_point sp
             WHERE ad.date_retired IS NULL
             AND agc.date_retired IS NULL
             AND sl.date_retired IS NULL
             AND l.date_retired IS NULL
             AND ST_Contains(sc.geometry, ST_SetSRID(ST_MakePoint(agc.longitude, agc.latitude), 4326))
+            {additional_where}
             ORDER BY ad.address_detail_pid, l.locality_name, sl.street_name, ad.number_first
             LIMIT %s OFFSET %s
         """
         
-        cursor.execute(query, (school_id, limit, offset))
+        # Build parameter list
+        query_params = [school_id, school_lng, school_lat] + filter_params + [limit, offset]
+        
+        cursor.execute(query, query_params)
         
         addresses = cursor.fetchall()
         
-        # Get total count
-        count_query = """
+        # Get total count with same filters
+        count_query = f"""
             WITH school_catchment AS (
                 SELECT geometry FROM gnaf.school_catchments WHERE school_id = %s
             )
@@ -929,20 +999,33 @@ def get_school_addresses(school_id):
             JOIN gnaf.address_default_geocode agc ON ad.address_detail_pid = agc.address_detail_pid
             JOIN gnaf.street_locality sl ON ad.street_locality_pid = sl.street_locality_pid
             JOIN gnaf.locality l ON sl.locality_pid = l.locality_pid
+            JOIN gnaf.state s ON l.state_pid = s.state_pid
             LEFT JOIN gnaf.street_type_aut st ON sl.street_type_code = st.code
             CROSS JOIN school_catchment sc
             WHERE ad.date_retired IS NULL
             AND agc.date_retired IS NULL
             AND ST_Contains(sc.geometry, ST_SetSRID(ST_MakePoint(agc.longitude, agc.latitude), 4326))
+            {additional_where}
         """
         
-        cursor.execute(count_query, (school_id,))
+        count_params = [school_id] + filter_params
+        cursor.execute(count_query, count_params)
         total_count = cursor.fetchone()['total']
         
         cursor.close()
         conn.close()
         
-        return jsonify({
+        # Debug: Print first address to console
+        if addresses:
+            first_addr = dict(addresses[0])
+            print(f"\n[DEBUG] First address object:")
+            print(f"  gnaf_id: {first_addr.get('gnaf_id')}")
+            print(f"  latitude: {first_addr.get('latitude')}")
+            print(f"  longitude: {first_addr.get('longitude')}")
+            print(f"  distance_km: {first_addr.get('distance_km')}")
+            print(f"  Full address: {first_addr.get('full_address')}\n")
+        
+        response = {
             'addresses': addresses,
             'total_count': total_count,
             'showing_count': len(addresses),
@@ -953,7 +1036,10 @@ def get_school_addresses(school_id):
                 'latitude': school_lat,
                 'longitude': school_lng
             }
-        })
+        }
+        
+        print(f"[DEBUG] Returning {len(addresses)} addresses with school_id={school_id}")
+        return jsonify(response)
         
     except Exception as e:
         if conn:

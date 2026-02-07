@@ -66,7 +66,7 @@ if (searchStreet && searchStreetSuggestions) {
             return;
         }
 
-        streetSearchDebounce = setTimeout(async() => {
+        streetSearchDebounce = setTimeout(async () => {
             try {
                 const response = await fetch(`/api/autocomplete/streets?q=${encodeURIComponent(query)}`);
                 const data = await response.json();
@@ -108,7 +108,7 @@ if (searchSuburb && searchSuburbSuggestions) {
             return;
         }
 
-        suburbSearchDebounce = setTimeout(async() => {
+        suburbSearchDebounce = setTimeout(async () => {
             try {
                 const response = await fetch(`/api/autocomplete/suburbs?q=${encodeURIComponent(query)}`);
                 const data = await response.json();
@@ -150,7 +150,7 @@ document.addEventListener('click', (e) => {
 // School Autocomplete
 // ============================================
 
-schoolInput.addEventListener('input', function() {
+schoolInput.addEventListener('input', function () {
     const query = this.value.trim();
 
     // Clear previous timer
@@ -208,7 +208,7 @@ function displaySchoolSuggestions(schools) {
 
     // Add click handlers
     document.querySelectorAll('#schoolSuggestions .autocomplete-item').forEach(item => {
-        item.addEventListener('click', function() {
+        item.addEventListener('click', function () {
             const schoolId = this.dataset.schoolId;
             const schoolName = this.dataset.schoolName;
 
@@ -223,7 +223,7 @@ function displaySchoolSuggestions(schools) {
 }
 
 // Close suggestions when clicking outside
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
     if (!schoolInput.contains(e.target) && !schoolSuggestions.contains(e.target)) {
         schoolSuggestions.style.display = 'none';
     }
@@ -233,7 +233,7 @@ document.addEventListener('click', function(e) {
 // Form Submission
 // ============================================
 
-schoolSearchForm.addEventListener('submit', function(e) {
+schoolSearchForm.addEventListener('submit', function (e) {
     e.preventDefault();
 
     if (currentSchoolId) {
@@ -441,7 +441,7 @@ function updatePagination() {
 function displaySchoolInfo(info) {
     // Debug: Log full API response
     console.log('displaySchoolInfo received:', info);
-    
+
     document.getElementById('schoolName').textContent = info.school_name;
     document.getElementById('schoolTypeBadge').textContent = info.school_type;
     document.getElementById('schoolTypeBadge').className = `badge badge-${info.school_type.toLowerCase()}`;
@@ -476,13 +476,31 @@ function displaySchoolInfo(info) {
         document.getElementById('schoolUrl-container').style.display = 'none';
     }
 
-    // Display catchment priority
-    const priorityDescriptions = {
-        '1': 'Local Intake Area',
-        '2': 'Buffer Zone',
-        '3': 'Non-Local'
-    };
-    document.getElementById('catchmentPriority').textContent = priorityDescriptions[info.priority] || (info.priority ? `Priority ${info.priority}` : 'N/A');
+    // Display school profile URL if available
+    if (info.acara_url && info.acara_url.trim()) {
+        let profileUrlString = info.acara_url.trim();
+        // Add https:// if no protocol is specified
+        if (!profileUrlString.startsWith('http://') && !profileUrlString.startsWith('https://')) {
+            profileUrlString = 'https://' + profileUrlString;
+        }
+        document.getElementById('schoolProfile').href = profileUrlString;
+        document.getElementById('schoolProfile-container').style.display = 'block';
+    } else {
+        document.getElementById('schoolProfile-container').style.display = 'none';
+    }
+
+    // Display NAPLAN scores URL if available
+    if (info.naplan_url && info.naplan_url.trim()) {
+        let naplanUrlString = info.naplan_url.trim();
+        // Add https:// if no protocol is specified
+        if (!naplanUrlString.startsWith('http://') && !naplanUrlString.startsWith('https://')) {
+            naplanUrlString = 'https://' + naplanUrlString;
+        }
+        document.getElementById('naplanScores').href = naplanUrlString;
+        document.getElementById('naplanScores-container').style.display = 'block';
+    } else {
+        document.getElementById('naplanScores-container').style.display = 'none';
+    }
 
     // Display ICSEA if available
     console.log('ICSEA value:', info.icsea, 'Type:', typeof info.icsea);
@@ -522,14 +540,14 @@ function displayCatchmentMap(boundaryData, schoolLocation) {
         catchmentMap.removeLayer(catchmentLayer);
     }
 
-    // Add catchment boundary
+    // Add catchment boundary with light green styling
     catchmentLayer = L.geoJSON(boundaryData.geojson, {
         style: {
-            color: '#c41230',
+            color: '#059669',
             weight: 2,
             opacity: 0.8,
-            fillColor: '#c41230',
-            fillOpacity: 0.1
+            fillColor: '#86efac',
+            fillOpacity: 0.3
         }
     }).addTo(catchmentMap);
 
@@ -539,15 +557,88 @@ function displayCatchmentMap(boundaryData, schoolLocation) {
         catchmentMap.fitBounds(catchmentLayer.getBounds());
     }, 100);
 
-    // Add school marker at centroid
-    if (schoolLocation) {
-        L.marker([schoolLocation.latitude, schoolLocation.longitude], {
-            icon: L.divIcon({
-                className: 'school-marker',
-                html: '<div style="background: #c41230; color: white; padding: 5px 10px; border-radius: 4px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">🏫 School</div>',
-                iconSize: [60, 30]
-            })
+    // Add school marker at centroid with custom SVG icon
+    console.log('School location data:', schoolLocation);
+
+    if (schoolLocation && schoolLocation.latitude && schoolLocation.longitude) {
+        console.log(`Adding marker at: ${schoolLocation.latitude}, ${schoolLocation.longitude}`);
+
+        // Get school name from DOM (already displayed in schoolName element)
+        const schoolNameDisplay = document.getElementById('schoolName') ? document.getElementById('schoolName').textContent : 'School';
+
+        // Create custom SVG school icon
+        const schoolSvgIcon = L.divIcon({
+            className: 'school-marker-custom',
+            html: `
+                <div style="position: relative; width: 40px; height: 50px; cursor: pointer;">
+                    <svg viewBox="0 0 24 24" style="width: 100%; height: 100%; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));" xmlns="http://www.w3.org/2000/svg">
+                        <!-- Building shape -->
+                        <path d="M6 2h12v2H6V2z" fill="#c41230" stroke="#fff" stroke-width="0.5"/>
+                        <path d="M6 4h12v16H6V4z" fill="#e6244a" stroke="#fff" stroke-width="0.5"/>
+                        <!-- Windows -->
+                        <rect x="8" y="6" width="2" height="2" fill="#fff" opacity="0.8"/>
+                        <rect x="12" y="6" width="2" height="2" fill="#fff" opacity="0.8"/>
+                        <rect x="14" y="6" width="2" height="2" fill="#fff" opacity="0.8"/>
+                        <rect x="8" y="10" width="2" height="2" fill="#fff" opacity="0.8"/>
+                        <rect x="12" y="10" width="2" height="2" fill="#fff" opacity="0.8"/>
+                        <rect x="14" y="10" width="2" height="2" fill="#fff" opacity="0.8"/>
+                        <rect x="8" y="14" width="2" height="2" fill="#fff" opacity="0.8"/>
+                        <rect x="12" y="14" width="2" height="2" fill="#fff" opacity="0.8"/>
+                        <rect x="14" y="14" width="2" height="2" fill="#fff" opacity="0.8"/>
+                        <!-- Door -->
+                        <rect x="11" y="16" width="2" height="4" fill="#fff" opacity="0.8"/>
+                        <!-- Flag pole and flag -->
+                        <rect x="16" y="2" width="1" height="6" fill="#333"/>
+                        <path d="M17 3 L17 7 L21 5 Z" fill="#ffd700" stroke="#333" stroke-width="0.5"/>
+                    </svg>
+                    <!-- Pointer -->
+                    <div style="position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid #c41230;"></div>
+                </div>
+            `,
+            iconSize: [40, 50],
+            iconAnchor: [20, 50],
+            popupAnchor: [0, -50]
+        });
+
+        const marker = L.marker([schoolLocation.latitude, schoolLocation.longitude], {
+            icon: schoolSvgIcon,
+            title: schoolNameDisplay
         }).addTo(catchmentMap);
+
+        console.log('Marker added successfully');
+
+        // Add popup with school information
+        const popupContent = `
+            <div style="font-family: Arial, sans-serif; min-width: 180px;">
+                <strong style="font-size: 14px; color: #1e3a8a;">${schoolNameDisplay}</strong>
+                <div style="margin-top: 6px; font-size: 12px; color: #333;">
+                    <div><strong>Location:</strong></div>
+                    <div>Lat: ${schoolLocation.latitude.toFixed(4)}</div>
+                    <div>Lon: ${schoolLocation.longitude.toFixed(4)}</div>
+                    ${schoolLocation.suburb ? `<div style="margin-top: 6px;"><strong>${schoolLocation.suburb}, ${schoolLocation.state || ''} ${schoolLocation.postcode || ''}</strong></div>` : ''}
+                </div>
+            </div>
+        `;
+
+        marker.bindPopup(popupContent, {
+            maxWidth: 250,
+            className: 'school-popup'
+        });
+
+        // Optional: Open popup on click
+        marker.on('click', function () {
+            this.openPopup();
+        });
+
+        // Add hover effect
+        marker.on('mouseover', function () {
+            this.getElement().style.filter = 'drop-shadow(0 4px 8px rgba(0,0,0,0.4)) brightness(1.1)';
+        });
+        marker.on('mouseout', function () {
+            this.getElement().style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))';
+        });
+    } else {
+        console.warn('School location data is missing or incomplete:', schoolLocation);
     }
 }
 
@@ -555,7 +646,7 @@ function displayCatchmentMap(boundaryData, schoolLocation) {
 // Address Search Functionality
 // ============================================
 
-searchAddressBtn.addEventListener('click', async function() {
+searchAddressBtn.addEventListener('click', async function () {
     const streetNumber = searchStreetNumber.value.trim();
     const street = searchStreet.value.trim();
     const suburb = searchSuburb.value.trim();
@@ -563,7 +654,13 @@ searchAddressBtn.addEventListener('click', async function() {
     const state = searchState.value.trim();
     const limit = searchLimit.value;
 
-    if (!street && !suburb && !postcode && !state) {
+    if (!currentSchoolId) {
+        searchResults.innerHTML = '<div class="error">Please select a school first</div>';
+        resultsSection.style.display = 'block';
+        return;
+    }
+
+    if (!street && !suburb && !postcode && !state && !streetNumber) {
         searchResults.innerHTML = '<div class="error">Please enter at least one search criteria</div>';
         resultsSection.style.display = 'block';
         return;
@@ -580,7 +677,8 @@ searchAddressBtn.addEventListener('click', async function() {
         if (state) params.append('state', state);
         params.append('limit', limit);
 
-        const response = await fetch(`/api/address/search?${params}`);
+        // Use school-specific endpoint to get addresses with distance
+        const response = await fetch(`/api/school/${currentSchoolId}/addresses?${params}`);
         const data = await response.json();
 
         if (!response.ok) {
@@ -590,7 +688,7 @@ searchAddressBtn.addEventListener('click', async function() {
         if (data.addresses.length === 0) {
             searchResults.innerHTML = `
                 <div class="no-results">
-                    No addresses found matching your search criteria
+                    No addresses found matching your search criteria within this school catchment
                 </div>
             `;
             resultsSection.style.display = 'block';
@@ -704,9 +802,9 @@ function generatePropertyLinks(address) {
     }
 
     return `
-        <div style="display: flex; flex-direction: column; gap: 6px;">
-            ${realEstateUrl ? `<a href="${realEstateUrl}" target="_blank" class="property-link" style="display: block; text-align: center; padding: 4px 8px; background: #c41230; color: white; text-decoration: none; border-radius: 3px; font-size: 0.85rem; font-weight: 500; white-space: nowrap;" title="View on RealEstate.com.au">RealEstate</a>` : ''}
-            ${domainUrl ? `<a href="${domainUrl}" target="_blank" class="property-link" style="display: block; text-align: center; padding: 4px 8px; background: #16a34a; color: white; text-decoration: none; border-radius: 3px; font-size: 0.85rem; font-weight: 500; white-space: nowrap;" title="View on Domain.com.au">Domain</a>` : ''}
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+            ${realEstateUrl ? `<a href="${realEstateUrl}" target="_blank" class="property-link" style="display: block; text-align: center; padding: 6px 12px; background: #c41230; color: white; text-decoration: none; border-radius: 4px; font-size: 0.85rem; font-weight: 500; white-space: nowrap; min-width: 85px;" title="View on RealEstate.com.au">RealEstate</a>` : ''}
+            ${domainUrl ? `<a href="${domainUrl}" target="_blank" class="property-link" style="display: block; text-align: center; padding: 6px 12px; background: #16a34a; color: white; text-decoration: none; border-radius: 4px; font-size: 0.85rem; font-weight: 500; white-space: nowrap; min-width: 85px;" title="View on Domain.com.au">Domain</a>` : ''}
         </div>
     `;
 }
@@ -798,267 +896,500 @@ function displaySearchResults(data) {
             <div class="results-title">Search Results in this School Catchment</div>
             <div class="results-count">${data.count} result(s)</div>
         </div>
+        
+        <!-- Desktop: Compact table with expandable rows -->
         <table class="results-table">
             <thead>
                 <tr>
-                    <th>Unit/Flat</th>
-                    <th>Street Number</th>
-                    <th>Street Name</th>
-                    <th>Suburb</th>
-                    <th>State</th>
-                    <th>Postcode</th>
-                    <th>Coordinates</th>
-                    <th>Geocode Type</th>
+                    <th style="width: 50px;"></th>
+                    <th>Address</th>
+                    <th>Distance</th>
                     <th>Confidence</th>
-                    <th>School Catchments</th>
-                    <th>Useful Links</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody id="schoolAddressResultsTableBody">
                 ${data.addresses.map((addr, index) => {
-                    const streetName = [addr.street_name, addr.street_type].filter(Boolean).join(' ').trim();
-                    const streetNumber = addr.number_last 
-                        ? `${addr.number_first}${addr.number_first_suffix || ''}-${addr.number_last}${addr.number_last_suffix || ''}` 
-                        : `${addr.number_first || 'N/A'}${addr.number_first_suffix || ''}`;
-                    
-                    const unit = addr.flat_number 
-                        ? (addr.flat_type ? `${addr.flat_type} ${addr.flat_number}` : addr.flat_number)
-                        : '-';
-                    
-                    const coords = addr.latitude && addr.longitude 
-                        ? `${parseFloat(addr.latitude).toFixed(6)}, ${parseFloat(addr.longitude).toFixed(6)}`
-                        : 'N/A';
-                    
-                    // Calculate distance from state CBD using Haversine formula
-                    let distanceFromCBD = '';
-                    if (addr.latitude && addr.longitude) {
-                        // Define CBD coordinates for each state
-                        const stateCBDs = {
-                            'NSW': { lat: -33.8688, lng: 151.2093, city: 'Sydney' },
-                            'VIC': { lat: -37.8136, lng: 144.9631, city: 'Melbourne' },
-                            'QLD': { lat: -27.4698, lng: 153.0251, city: 'Brisbane' },
-                            'SA': { lat: -34.9285, lng: 138.6007, city: 'Adelaide' },
-                            'WA': { lat: -31.9505, lng: 115.8605, city: 'Perth' },
-                            'TAS': { lat: -42.8821, lng: 147.3272, city: 'Hobart' },
-                            'NT': { lat: -12.4634, lng: 130.8456, city: 'Darwin' },
-                            'ACT': { lat: -35.2809, lng: 149.1300, city: 'Canberra' }
-                        };
-                        
-                        const stateCBD = stateCBDs[addr.state];
-                        if (stateCBD) {
-                            const lat1 = parseFloat(addr.latitude);
-                            const lng1 = parseFloat(addr.longitude);
-                            const lat2 = stateCBD.lat;
-                            const lng2 = stateCBD.lng;
-                            
-                            // Haversine formula
-                            const R = 6371; // Earth's radius in km
-                            const dLat = (lat2 - lat1) * Math.PI / 180;
-                            const dLng = (lng2 - lng1) * Math.PI / 180;
-                            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                                     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                                     Math.sin(dLng/2) * Math.sin(dLng/2);
-                            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-                            const distance = R * c;
-                            
-                            distanceFromCBD = `Distance from ${stateCBD.city} CBD: ${distance.toFixed(2)} km&#10;(Haversine formula used to calculate as-the-crow-flies distance, driving distance can be calculated from Google Maps)`;
-                        }
-                    }
-                    
-                    const googleMapsUrl = addr.latitude && addr.longitude
-                        ? `https://www.google.com/maps?q=${parseFloat(addr.latitude).toFixed(6)},${parseFloat(addr.longitude).toFixed(6)}`
-                        : '';
-                    
-                    const geocodeType = addr.geocode_type_code || 'N/A';
-                    
-                    let confidenceText = 'Unknown';
-                    let confidenceColor = '#999';
-                    
-                    if (addr.confidence !== null && addr.confidence !== undefined) {
-                        const confValue = parseInt(addr.confidence);
-                        if (confValue === 3) {
-                            confidenceText = 'Very High';
-                            confidenceColor = '#28a745';
-                        } else if (confValue === 2) {
-                            confidenceText = 'High';
-                            confidenceColor = '#5cb85c';
-                        } else if (confValue === 1) {
-                            confidenceText = 'Medium';
-                            confidenceColor = '#ffc107';
-                        } else if (confValue === 0) {
-                            confidenceText = 'Low';
-                            confidenceColor = '#ff9800';
-                        } else if (confValue === -1) {
-                            confidenceText = 'None';
-                            confidenceColor = '#dc3545';
-                        }
-                    }
-                    
-                    // Helper function for URL formatting
-                    const formatForUrl = (str) => {
-                        if (!str) return '';
-                        return str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-                    };
-                    
-                    // Expand street type for RealEstate
-                    const expandStreetTypeRealEstate = (type) => {
-                        if (!type) return '';
-                        const abbreviations = {
-                            'avenue': 'ave', 'av': 'ave', 'ave': 'ave',
-                            'street': 'st', 'st': 'st',
-                            'road': 'rd', 'rd': 'rd',
-                            'drive': 'dr', 'dr': 'dr',
-                            'court': 'ct', 'ct': 'ct',
-                            'place': 'pl', 'pl': 'pl',
-                            'crescent': 'cres', 'cres': 'cres', 'cr': 'cres',
-                            'lane': 'ln', 'ln': 'ln',
-                            'terrace': 'tce', 'tce': 'tce',
-                            'parade': 'pde', 'pde': 'pde',
-                            'way': 'way',
-                            'highway': 'hwy', 'hwy': 'hwy',
-                            'esplanade': 'esp', 'espl': 'esp', 'esp': 'esp'
-                        };
-                        return abbreviations[type.toLowerCase()] || type.toLowerCase();
-                    };
-                    
-                    // Expand street type for Domain
-                    const expandStreetTypeDomain = (type) => {
-                        if (!type) return '';
-                        const abbreviations = {
-                            'av': 'avenue', 'ave': 'avenue', 'avenue': 'avenue',
-                            'st': 'street', 'street': 'street',
-                            'rd': 'road', 'road': 'road',
-                            'dr': 'drive', 'drive': 'drive',
-                            'ct': 'court', 'court': 'court',
-                            'pl': 'place', 'place': 'place',
-                            'cr': 'crescent', 'cres': 'crescent', 'crescent': 'crescent',
-                            'ln': 'lane', 'lane': 'lane',
-                            'tce': 'terrace', 'terrace': 'terrace',
-                            'pde': 'parade', 'parade': 'parade',
-                            'way': 'way',
-                            'hwy': 'highway', 'highway': 'highway',
-                            'espl': 'esplanade', 'esp': 'esplanade', 'esplanade': 'esplanade'
-                        };
-                        return abbreviations[type.toLowerCase()] || type.toLowerCase();
-                    };
-                    
-                    // Build property URLs
-                    const urlStreetNumber = streetNumber.replace('N/A', '').trim();
-                    const urlUnitNumber = addr.flat_number ? addr.flat_number.toString() : '';
-                    const urlStreetNameRealEstate = formatForUrl([addr.street_name, expandStreetTypeRealEstate(addr.street_type)].filter(Boolean).join(' '));
-                    const urlStreetNameDomain = formatForUrl([addr.street_name, expandStreetTypeDomain(addr.street_type)].filter(Boolean).join(' '));
-                    const urlSuburb = formatForUrl(addr.suburb);
-                    const urlState = (addr.state || '').toLowerCase();
-                    const urlPostcode = addr.postcode || '';
-                    
-                    // Build RealEstate URL
-                    let realEstateUrl = '';
-                    if (urlStreetNumber && urlStreetNameRealEstate && urlSuburb && urlState && urlPostcode) {
-                        if (urlUnitNumber) {
-                            realEstateUrl = `https://www.realestate.com.au/property/unit-${urlUnitNumber}-${urlStreetNumber}-${urlStreetNameRealEstate}-${urlSuburb}-${urlState}-${urlPostcode}/`;
-                        } else {
-                            realEstateUrl = `https://www.realestate.com.au/property/${urlStreetNumber}-${urlStreetNameRealEstate}-${urlSuburb}-${urlState}-${urlPostcode}/`;
-                        }
-                    }
-                    
-                    // Build Domain URL
-                    let domainUrl = '';
-                    if (urlStreetNumber && urlStreetNameDomain && urlSuburb && urlState && urlPostcode) {
-                        if (urlUnitNumber) {
-                            domainUrl = `https://www.domain.com.au/property-profile/${urlUnitNumber}-${urlStreetNumber}-${urlStreetNameDomain}-${urlSuburb}-${urlState}-${urlPostcode}`;
-                        } else {
-                            domainUrl = `https://www.domain.com.au/property-profile/${urlStreetNumber}-${urlStreetNameDomain}-${urlSuburb}-${urlState}-${urlPostcode}`;
-                        }
-                    }
-                    
-                    return `
-                        <tr data-row-index="${index}" data-lat="${addr.latitude || ''}" data-lng="${addr.longitude || ''}">
-                            <td>${unit}</td>
-                            <td><strong>${streetNumber}</strong></td>
-                            <td>${streetName || 'N/A'}</td>
-                            <td>${addr.suburb || 'N/A'}</td>
-                            <td>${addr.state || 'N/A'}</td>
-                            <td>${addr.postcode || 'N/A'}</td>
-                            <td style="font-size: 0.85rem;">
-                                ${googleMapsUrl 
-                                    ? `<a href="${googleMapsUrl}" target="_blank" class="coords-button" title="View on Google Maps${distanceFromCBD ? '&#10;' + distanceFromCBD : ''}">📍 ${coords}</a>` 
-                                    : '<span style="color: var(--text-muted);">N/A</span>'}
+        const streetName = [addr.street_name, addr.street_type].filter(Boolean).join(' ').trim();
+
+        // Build street number - only show if number_first exists
+        let streetNumber = '';
+        if (addr.number_first) {
+            if (addr.number_last) {
+                streetNumber = `${addr.number_first}${addr.number_first_suffix || ''}-${addr.number_last}${addr.number_last_suffix || ''}`;
+            } else {
+                streetNumber = `${addr.number_first}${addr.number_first_suffix || ''}`;
+            }
+        }
+
+        const unit = addr.flat_number
+            ? (addr.flat_type ? `${addr.flat_type} ${addr.flat_number}` : addr.flat_number)
+            : '';
+
+        // Full address for display
+        const fullAddress = [
+            unit,
+            streetNumber,
+            streetName
+        ].filter(Boolean).join(' ');
+
+        const coords = addr.latitude && addr.longitude
+            ? `${parseFloat(addr.latitude).toFixed(6)}, ${parseFloat(addr.longitude).toFixed(6)}`
+            : 'N/A';
+
+        const distanceFromSchool = addr.distance_km !== null && addr.distance_km !== undefined
+            ? parseFloat(addr.distance_km).toFixed(2)
+            : 'N/A';
+
+        // Calculate distance from state CBD using Haversine formula
+        let distanceFromCBD = '';
+        if (addr.latitude && addr.longitude) {
+            // Define CBD coordinates for each state
+            const stateCBDs = {
+                'NSW': { lat: -33.8688, lng: 151.2093, city: 'Sydney' },
+                'VIC': { lat: -37.8136, lng: 144.9631, city: 'Melbourne' },
+                'QLD': { lat: -27.4698, lng: 153.0251, city: 'Brisbane' },
+                'SA': { lat: -34.9285, lng: 138.6007, city: 'Adelaide' },
+                'WA': { lat: -31.9505, lng: 115.8605, city: 'Perth' },
+                'TAS': { lat: -42.8821, lng: 147.3272, city: 'Hobart' },
+                'NT': { lat: -12.4634, lng: 130.8456, city: 'Darwin' },
+                'ACT': { lat: -35.2809, lng: 149.1300, city: 'Canberra' }
+            };
+
+            const stateCBD = stateCBDs[addr.state];
+            if (stateCBD) {
+                const lat1 = parseFloat(addr.latitude);
+                const lng1 = parseFloat(addr.longitude);
+                const lat2 = stateCBD.lat;
+                const lng2 = stateCBD.lng;
+
+                // Haversine formula
+                const R = 6371; // Earth's radius in km
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLng = (lng2 - lng1) * Math.PI / 180;
+                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                const distance = R * c;
+
+                distanceFromCBD = `${distance.toFixed(2)} km from ${stateCBD.city} CBD`;
+            }
+        }
+
+        const googleMapsUrl = addr.latitude && addr.longitude
+            ? `https://www.google.com/maps?q=${parseFloat(addr.latitude).toFixed(6)},${parseFloat(addr.longitude).toFixed(6)}`
+            : '';
+
+        const geocodeType = addr.geocode_type_code || 'N/A';
+
+        let confidenceText = 'Unknown';
+        let confidenceColor = '#999';
+
+        if (addr.confidence !== null && addr.confidence !== undefined) {
+            const confValue = parseInt(addr.confidence);
+            if (confValue === 3) {
+                confidenceText = 'Very High';
+                confidenceColor = '#28a745';
+            } else if (confValue === 2) {
+                confidenceText = 'High';
+                confidenceColor = '#5cb85c';
+            } else if (confValue === 1) {
+                confidenceText = 'Medium';
+                confidenceColor = '#ffc107';
+            } else if (confValue === 0) {
+                confidenceText = 'Low';
+                confidenceColor = '#ff9800';
+            } else if (confValue === -1) {
+                confidenceText = 'None';
+                confidenceColor = '#dc3545';
+            }
+        }
+
+        // Helper function for URL formatting
+        const formatForUrl = (str) => {
+            if (!str) return '';
+            return str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        };
+
+        // Expand street type for RealEstate
+        const expandStreetTypeRealEstate = (type) => {
+            if (!type) return '';
+            const abbreviations = {
+                'avenue': 'ave', 'av': 'ave', 'ave': 'ave',
+                'street': 'st', 'st': 'st',
+                'road': 'rd', 'rd': 'rd',
+                'drive': 'dr', 'dr': 'dr',
+                'court': 'ct', 'ct': 'ct',
+                'place': 'pl', 'pl': 'pl',
+                'crescent': 'cres', 'cres': 'cres', 'cr': 'cres',
+                'lane': 'ln', 'ln': 'ln',
+                'terrace': 'tce', 'tce': 'tce',
+                'parade': 'pde', 'pde': 'pde',
+                'way': 'way',
+                'highway': 'hwy', 'hwy': 'hwy',
+                'esplanade': 'esp', 'espl': 'esp', 'esp': 'esp'
+            };
+            return abbreviations[type.toLowerCase()] || type.toLowerCase();
+        };
+
+        // Expand street type for Domain
+        const expandStreetTypeDomain = (type) => {
+            if (!type) return '';
+            const abbreviations = {
+                'av': 'avenue', 'ave': 'avenue', 'avenue': 'avenue',
+                'st': 'street', 'street': 'street',
+                'rd': 'road', 'road': 'road',
+                'dr': 'drive', 'drive': 'drive',
+                'ct': 'court', 'court': 'court',
+                'pl': 'place', 'place': 'place',
+                'cr': 'crescent', 'cres': 'crescent', 'crescent': 'crescent',
+                'ln': 'lane', 'lane': 'lane',
+                'tce': 'terrace', 'terrace': 'terrace',
+                'pde': 'parade', 'parade': 'parade',
+                'way': 'way',
+                'hwy': 'highway', 'highway': 'highway',
+                'espl': 'esplanade', 'esp': 'esplanade', 'esplanade': 'esplanade'
+            };
+            return abbreviations[type.toLowerCase()] || type.toLowerCase();
+        };
+
+        // Build property URLs
+        const urlStreetNumber = streetNumber.trim();
+        const urlUnitNumber = addr.flat_number ? addr.flat_number.toString() : '';
+        const urlStreetNameRealEstate = formatForUrl([addr.street_name, expandStreetTypeRealEstate(addr.street_type)].filter(Boolean).join(' '));
+        const urlStreetNameDomain = formatForUrl([addr.street_name, expandStreetTypeDomain(addr.street_type)].filter(Boolean).join(' '));
+        const urlSuburb = formatForUrl(addr.suburb);
+        const urlState = (addr.state || '').toLowerCase();
+        const urlPostcode = addr.postcode || '';
+
+        // Build RealEstate URL
+        let realEstateUrl = '';
+        if (urlStreetNumber && urlStreetNameRealEstate && urlSuburb && urlState && urlPostcode) {
+            if (urlUnitNumber) {
+                realEstateUrl = `https://www.realestate.com.au/property/unit-${urlUnitNumber}-${urlStreetNumber}-${urlStreetNameRealEstate}-${urlSuburb}-${urlState}-${urlPostcode}/`;
+            } else {
+                realEstateUrl = `https://www.realestate.com.au/property/${urlStreetNumber}-${urlStreetNameRealEstate}-${urlSuburb}-${urlState}-${urlPostcode}/`;
+            }
+        }
+
+        // Build Domain URL
+        let domainUrl = '';
+        if (urlStreetNumber && urlStreetNameDomain && urlSuburb && urlState && urlPostcode) {
+            if (urlUnitNumber) {
+                domainUrl = `https://www.domain.com.au/property-profile/${urlUnitNumber}-${urlStreetNumber}-${urlStreetNameDomain}-${urlSuburb}-${urlState}-${urlPostcode}`;
+            } else {
+                domainUrl = `https://www.domain.com.au/property-profile/${urlStreetNumber}-${urlStreetNameDomain}-${urlSuburb}-${urlState}-${urlPostcode}`;
+            }
+        }
+
+        // Desktop: Compact main row + expandable details row
+        return `
+                        <!-- Main row (always visible) -->
+                        <tr class="results-row-main" data-row-index="${index}" data-lat="${addr.latitude || ''}" data-lng="${addr.longitude || ''}" onclick="toggleRowDetails(${index})">
+                            <td><span class="expand-icon">▸</span></td>
+                            <td>
+                                <strong>${fullAddress}</strong><br>
+                                <span style="color: var(--text-muted); font-size: 0.85rem;">${addr.suburb || 'N/A'}, ${addr.state || 'N/A'} ${addr.postcode || ''}</span>
                             </td>
-                            <td style="font-size: 0.85rem;">${geocodeType}</td>
-                            <td style="font-size: 0.85rem;">
-                                <span style="color: ${confidenceColor}; font-weight: 500;">
+                            <td style="font-weight: 600; color: #059669;">${distanceFromSchool} km</td>
+                            <td>
+                                <span style="color: ${confidenceColor}; font-weight: 500; font-size: 0.9rem;">
                                     ${confidenceText}
                                 </span>
                             </td>
-                            <td class="school-catchment-cell" style="font-size: 0.85rem;">
-                                <span style="color: #999;">Loading...</span>
+                            <td style="white-space: nowrap;">
+                                ${googleMapsUrl ? `<a href="${googleMapsUrl}" target="_blank" class="coords-button" title="View on Google Maps" onclick="event.stopPropagation()">📍 Map</a>` : ''}
                             </td>
-                            <td style="font-size: 0.85rem;">
-                                ${realEstateUrl ? `<a href="${realEstateUrl}" target="_blank" style="display: inline-block; padding: 4px 8px; background: #dc3545; color: white; text-decoration: none; border-radius: 3px; margin-right: 4px; font-size: 0.75rem;">RealEstate</a>` : ''}
-                                ${domainUrl ? `<a href="${domainUrl}" target="_blank" style="display: inline-block; padding: 4px 8px; background: #28a745; color: white; text-decoration: none; border-radius: 3px; font-size: 0.75rem;">Domain</a>` : ''}
-                                ${!realEstateUrl && !domainUrl ? '<span style="color: #999;">-</span>' : ''}
+                        </tr>
+                        <!-- Details row (expandable) -->
+                        <tr class="results-row-details" id="details-${index}" data-row-index="${index}">
+                            <td colspan="5">
+                                <div class="detail-grid">
+                                    <div class="detail-item">
+                                        <div class="detail-label">Coordinates</div>
+                                        <div class="detail-value">${coords}</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Distance from CBD</div>
+                                        <div class="detail-value">${distanceFromCBD || 'N/A'}</div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">Geocode Type</div>
+                                        <div class="detail-value">${geocodeType}</div>
+                                    </div>
+                                    <div class="detail-item school-catchment-detail">
+                                        <div class="detail-label">School Catchments</div>
+                                        <div class="detail-value"><span style="color: #999;">Loading...</span></div>
+                                    </div>
+                                    <div class="detail-item" style="grid-column: 1 / -1;">
+                                        <div class="detail-label">Property Links</div>
+                                        <div class="detail-value" style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px;">
+                                            ${realEstateUrl ? `<a href="${realEstateUrl}" target="_blank" style="display: inline-block; padding: 8px 16px; background: #c41230; color: white; text-decoration: none; border-radius: 4px; font-size: 0.85rem; font-weight: 500;">🏠 RealEstate.com.au</a>` : ''}
+                                            ${domainUrl ? `<a href="${domainUrl}" target="_blank" style="display: inline-block; padding: 8px 16px; background: #16a34a; color: white; text-decoration: none; border-radius: 4px; font-size: 0.85rem; font-weight: 500;">🏡 Domain.com.au</a>` : ''}
+                                            ${!realEstateUrl && !domainUrl ? '<span style="color: #999;">No property links available</span>' : ''}
+                                        </div>
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                     `;
-                }).join('')}
+    }).join('')}
             </tbody>
         </table>
+        
+        <!-- Mobile: Card layout -->
+        <div class="results-cards">
+            ${data.addresses.map((addr, index) => {
+        const streetName = [addr.street_name, addr.street_type].filter(Boolean).join(' ').trim();
+
+        let streetNumber = '';
+        if (addr.number_first) {
+            if (addr.number_last) {
+                streetNumber = `${addr.number_first}${addr.number_first_suffix || ''}-${addr.number_last}${addr.number_last_suffix || ''}`;
+            } else {
+                streetNumber = `${addr.number_first}${addr.number_first_suffix || ''}`;
+            }
+        }
+
+        const unit = addr.flat_number
+            ? (addr.flat_type ? `${addr.flat_type} ${addr.flat_number}` : addr.flat_number)
+            : '';
+
+        const fullAddress = [unit, streetNumber, streetName].filter(Boolean).join(' ');
+        const coords = addr.latitude && addr.longitude
+            ? `${parseFloat(addr.latitude).toFixed(6)}, ${parseFloat(addr.longitude).toFixed(6)}`
+            : 'N/A';
+
+        const distanceFromSchool = addr.distance_km !== null && addr.distance_km !== undefined
+            ? parseFloat(addr.distance_km).toFixed(2)
+            : 'N/A';
+
+        const googleMapsUrl = addr.latitude && addr.longitude
+            ? `https://www.google.com/maps?q=${parseFloat(addr.latitude).toFixed(6)},${parseFloat(addr.longitude).toFixed(6)}`
+            : '';
+
+        const geocodeType = addr.geocode_type_code || 'N/A';
+
+        let confidenceText = 'Unknown';
+        let confidenceColor = '#999';
+
+        if (addr.confidence !== null && addr.confidence !== undefined) {
+            const confValue = parseInt(addr.confidence);
+            if (confValue === 3) {
+                confidenceText = 'Very High';
+                confidenceColor = '#28a745';
+            } else if (confValue === 2) {
+                confidenceText = 'High';
+                confidenceColor = '#5cb85c';
+            } else if (confValue === 1) {
+                confidenceText = 'Medium';
+                confidenceColor = '#ffc107';
+            } else if (confValue === 0) {
+                confidenceText = 'Low';
+                confidenceColor = '#ff9800';
+            } else if (confValue === -1) {
+                confidenceText = 'None';
+                confidenceColor = '#dc3545';
+            }
+        }
+
+        // Property URLs (same logic as desktop)
+        const formatForUrl = (str) => !str ? '' : str.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        const expandStreetTypeRealEstate = (type) => {
+            if (!type) return '';
+            const abbreviations = {
+                'avenue': 'ave', 'av': 'ave', 'ave': 'ave', 'street': 'st', 'st': 'st',
+                'road': 'rd', 'rd': 'rd', 'drive': 'dr', 'dr': 'dr', 'court': 'ct', 'ct': 'ct',
+                'place': 'pl', 'pl': 'pl', 'crescent': 'cres', 'cres': 'cres', 'cr': 'cres',
+                'lane': 'ln', 'ln': 'ln', 'terrace': 'tce', 'tce': 'tce', 'parade': 'pde', 'pde': 'pde',
+                'way': 'way', 'highway': 'hwy', 'hwy': 'hwy', 'esplanade': 'esp', 'espl': 'esp', 'esp': 'esp'
+            };
+            return abbreviations[type.toLowerCase()] || type.toLowerCase();
+        };
+        const expandStreetTypeDomain = (type) => {
+            if (!type) return '';
+            const abbreviations = {
+                'av': 'avenue', 'ave': 'avenue', 'avenue': 'avenue', 'st': 'street', 'street': 'street',
+                'rd': 'road', 'road': 'road', 'dr': 'drive', 'drive': 'drive', 'ct': 'court', 'court': 'court',
+                'pl': 'place', 'place': 'place', 'cr': 'crescent', 'cres': 'crescent', 'crescent': 'crescent',
+                'ln': 'lane', 'lane': 'lane', 'tce': 'terrace', 'terrace': 'terrace', 'pde': 'parade', 'parade': 'parade',
+                'way': 'way', 'hwy': 'highway', 'highway': 'highway', 'espl': 'esplanade', 'esp': 'esplanade', 'esplanade': 'esplanade'
+            };
+            return abbreviations[type.toLowerCase()] || type.toLowerCase();
+        };
+
+        const urlStreetNumber = streetNumber.trim();
+        const urlUnitNumber = addr.flat_number ? addr.flat_number.toString() : '';
+        const urlStreetNameRealEstate = formatForUrl([addr.street_name, expandStreetTypeRealEstate(addr.street_type)].filter(Boolean).join(' '));
+        const urlStreetNameDomain = formatForUrl([addr.street_name, expandStreetTypeDomain(addr.street_type)].filter(Boolean).join(' '));
+        const urlSuburb = formatForUrl(addr.suburb);
+        const urlState = (addr.state || '').toLowerCase();
+        const urlPostcode = addr.postcode || '';
+
+        let realEstateUrl = '';
+        if (urlStreetNumber && urlStreetNameRealEstate && urlSuburb && urlState && urlPostcode) {
+            if (urlUnitNumber) {
+                realEstateUrl = `https://www.realestate.com.au/property/unit-${urlUnitNumber}-${urlStreetNumber}-${urlStreetNameRealEstate}-${urlSuburb}-${urlState}-${urlPostcode}/`;
+            } else {
+                realEstateUrl = `https://www.realestate.com.au/property/${urlStreetNumber}-${urlStreetNameRealEstate}-${urlSuburb}-${urlState}-${urlPostcode}/`;
+            }
+        }
+
+        let domainUrl = '';
+        if (urlStreetNumber && urlStreetNameDomain && urlSuburb && urlState && urlPostcode) {
+            if (urlUnitNumber) {
+                domainUrl = `https://www.domain.com.au/property-profile/${urlUnitNumber}-${urlStreetNumber}-${urlStreetNameDomain}-${urlSuburb}-${urlState}-${urlPostcode}`;
+            } else {
+                domainUrl = `https://www.domain.com.au/property-profile/${urlStreetNumber}-${urlStreetNameDomain}-${urlSuburb}-${urlState}-${urlPostcode}`;
+            }
+        }
+
+        return `
+                    <div class="result-card" data-row-index="${index}" data-lat="${addr.latitude || ''}" data-lng="${addr.longitude || ''}">
+                        <div class="card-header">
+                            <div class="card-address">${fullAddress}</div>
+                            <div class="card-suburb">${addr.suburb || 'N/A'}, ${addr.state || 'N/A'} ${addr.postcode || ''}</div>
+                        </div>
+                        <div class="card-body">
+                            <div class="card-info-grid">
+                                <div class="card-info-item">
+                                    <div class="card-info-label">Distance from School</div>
+                                    <div class="card-info-value" style="color: #059669; font-weight: 600;">${distanceFromSchool} km</div>
+                                </div>
+                                <div class="card-info-item">
+                                    <div class="card-info-label">Confidence</div>
+                                    <div class="card-info-value" style="color: ${confidenceColor}; font-weight: 500;">${confidenceText}</div>
+                                </div>
+                                <div class="card-info-item">
+                                    <div class="card-info-label">Coordinates</div>
+                                    <div class="card-info-value" style="font-size: 0.85rem;">${coords}</div>
+                                </div>
+                                <div class="card-info-item">
+                                    <div class="card-info-label">Geocode Type</div>
+                                    <div class="card-info-value">${geocodeType}</div>
+                                </div>
+                            </div>
+                            <div class="card-info-item" style="margin-top: var(--spacing-sm);">
+                                <div class="card-info-label">School Catchments</div>
+                                <div class="card-info-value card-school-catchment-${index}"><span style="color: #999;">Loading...</span></div>
+                            </div>
+                            <div class="card-actions">
+                                ${googleMapsUrl ? `<a href="${googleMapsUrl}" target="_blank" class="card-action-btn btn-maps">📍 Maps</a>` : ''}
+                                ${realEstateUrl ? `<a href="${realEstateUrl}" target="_blank" class="card-action-btn btn-realestate">RealEstate</a>` : ''}
+                                ${domainUrl ? `<a href="${domainUrl}" target="_blank" class="card-action-btn btn-domain">Domain</a>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+    }).join('')}
+        </div>
     `;
-    
+
     // Fetch school catchments for each address
     fetchSchoolCatchmentsForResults();
 }
 
+// Toggle row details (desktop table)
+function toggleRowDetails(index) {
+    const mainRow = document.querySelector(`.results-row-main[data-row-index="${index}"]`);
+    const detailsRow = document.getElementById(`details-${index}`);
+
+    if (!mainRow || !detailsRow) return;
+
+    const isExpanded = detailsRow.classList.contains('show');
+
+    if (isExpanded) {
+        detailsRow.classList.remove('show');
+        mainRow.classList.remove('expanded');
+    } else {
+        detailsRow.classList.add('show');
+        mainRow.classList.add('expanded');
+    }
+}
+
 // Function to fetch school catchments for all addresses in search results
 async function fetchSchoolCatchmentsForResults() {
-    const rows = document.querySelectorAll('#schoolAddressResultsTableBody tr');
-    
-    for (const row of rows) {
+    // Desktop table rows
+    const mainRows = document.querySelectorAll('.results-row-main');
+
+    for (const row of mainRows) {
+        const rowIndex = row.dataset.rowIndex;
         const lat = row.dataset.lat;
         const lng = row.dataset.lng;
-        const schoolCell = row.querySelector('.school-catchment-cell');
-        
-        if (!lat || !lng) {
-            schoolCell.innerHTML = '<span style="color: #999;">No coordinates</span>';
+        const detailsRow = document.getElementById(`details-${rowIndex}`);
+        const schoolCell = detailsRow ? detailsRow.querySelector('.school-catchment-detail .detail-value') : null;
+
+        if (!lat || !lng || !schoolCell) {
+            if (schoolCell) schoolCell.innerHTML = '<span style="color: #999;">No coordinates</span>';
             continue;
         }
-        
-        try {
-            const response = await fetch(`/api/address/schools?lat=${lat}&lng=${lng}`);
-            const data = await response.json();
-            
-            if (data.schools && data.schools.length > 0) {
-                const schoolsHtml = data.schools.map(school => {
-                    const typeColors = {
-                        'PRIMARY': '#2196F3',
-                        'SECONDARY': '#4CAF50',
-                        'HIGH_COED': '#4CAF50',
-                        'FUTURE': '#FF9800'
-                    };
-                    const color = typeColors[school.school_type] || '#999';
-                    
-                    return `
-                        <div style="margin-bottom: 4px;">
-                            <a href="/school-search?school_id=${school.school_id}" 
-                               style="color: var(--primary-color); text-decoration: none; font-weight: 500;"
-                               title="Click to view all addresses in ${school.school_name} catchment">
-                                ${school.school_name}
-                            </a>
-                            <span style="font-size: 0.75rem; color: ${color}; font-weight: 500; margin-left: 4px;">
-                                (${school.school_type})
-                            </span>
-                        </div>
-                    `;
-                }).join('');
-                
-                schoolCell.innerHTML = schoolsHtml;
-            } else {
-                schoolCell.innerHTML = '<span style="color: #999;">No catchment</span>';
-            }
-        } catch (error) {
-            console.error('Error fetching schools:', error);
-            schoolCell.innerHTML = '<span style="color: #dc3545;">Error loading</span>';
+
+        await fetchAndDisplaySchools(lat, lng, schoolCell);
+    }
+
+    // Mobile cards
+    const cards = document.querySelectorAll('.result-card');
+
+    for (const card of cards) {
+        const rowIndex = card.dataset.rowIndex;
+        const lat = card.dataset.lat;
+        const lng = card.dataset.lng;
+        const schoolCell = card.querySelector(`.card-school-catchment-${rowIndex}`);
+
+        if (!lat || !lng || !schoolCell) {
+            if (schoolCell) schoolCell.innerHTML = '<span style="color: #999;">No coordinates</span>';
+            continue;
         }
+
+        await fetchAndDisplaySchools(lat, lng, schoolCell);
+    }
+}
+
+// Helper function to fetch and display schools for a given cell
+async function fetchAndDisplaySchools(lat, lng, schoolCell) {
+    if (!schoolCell) return;
+
+    if (!lat || !lng) {
+        schoolCell.innerHTML = '<span style="color: #999;">No coordinates</span>';
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/address/schools?lat=${lat}&lng=${lng}`);
+        const data = await response.json();
+
+        if (data.schools && data.schools.length > 0) {
+            const schoolsHtml = data.schools.map(school => {
+                const typeColors = {
+                    'PRIMARY': '#2196F3',
+                    'SECONDARY': '#4CAF50',
+                    'HIGH_COED': '#4CAF50',
+                    'FUTURE': '#FF9800'
+                };
+                const color = typeColors[school.school_type] || '#999';
+
+                return `
+                    <div style="margin-bottom: 4px;">
+                        <a href="/school-search?school_id=${school.school_id}" 
+                           style="color: var(--primary-color); text-decoration: none; font-weight: 500;"
+                           title="Click to view all addresses in ${school.school_name} catchment">
+                            ${school.school_name}
+                        </a>
+                        <span style="font-size: 0.75rem; color: ${color}; font-weight: 500; margin-left: 4px;">
+                            (${school.school_type})
+                        </span>
+                    </div>
+                `;
+            }).join('');
+
+            schoolCell.innerHTML = schoolsHtml;
+        } else {
+            schoolCell.innerHTML = '<span style="color: #999;">No catchment</span>';
+        }
+    } catch (error) {
+        console.error('Error fetching schools:', error);
+        schoolCell.innerHTML = '<span style="color: #dc3545;">Error loading</span>';
     }
 }
 
