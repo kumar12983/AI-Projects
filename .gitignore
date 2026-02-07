@@ -20,3 +20,4 @@ ENV/
 # Editor directories
 .vscode/
 .idea/
+PRD/database/setup/query_explorer.pgsql
