@@ -1,0 +1,29 @@
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1
+WORKDIR /app
+
+# Install minimal build deps needed for psycopg2
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential libpq-dev gcc postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy application and requirements from PRD root (build context should be PRD)
+COPY requirements.txt ./requirements.txt
+COPY webapp ./webapp
+
+# Install Python dependencies from requirements.txt
+RUN pip install --upgrade pip
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# Copy entrypoint script and make it executable
+COPY deployment/docker/entrypoint.sh /app/webapp/entrypoint.sh
+RUN chmod +x /app/webapp/entrypoint.sh
+
+WORKDIR /app/webapp
+
+EXPOSE 5000
+
+# Use entrypoint to wait for DB then exec the command (gunicorn by default)
+ENTRYPOINT ["/app/webapp/entrypoint.sh"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
