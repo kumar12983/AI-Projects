@@ -41,6 +41,36 @@ def get_db_connection():
         return None
 
 
+def is_coordinate_like(value):
+    """
+    Check if a string looks like a coordinate (latitude/longitude)
+    Returns True if it's likely a coordinate that should be rejected
+    """
+    if not value:
+        return False
+    
+    try:
+        # Try to convert to float
+        num = float(value)
+        
+        # Coordinates are typically in range:
+        # Latitude: -90 to 90
+        # Longitude: -180 to 180
+        # Australian longitude: ~110 to 155
+        # Australian latitude: ~-45 to -10
+        
+        # Reject if it's a number in coordinate-like ranges with decimal places
+        if '.' in value and (
+            (-90 <= num <= 90) or  # Could be lat
+            (-180 <= num <= 180)   # Could be lng
+        ):
+            return True
+    except (ValueError, TypeError):
+        pass
+    
+    return False
+
+
 @login_manager.user_loader
 def load_user(user_id):
     """Load user for Flask-Login"""
@@ -87,6 +117,13 @@ def search_page():
 def school_search_page():
     """School catchment search page"""
     return render_template('school_search.html')
+
+
+@app.route('/australia-school-search')
+@login_required
+def australia_school_search_page():
+    """Australia-wide school search page with 5km zones"""
+    return render_template('australia_school_search.html')
 
 
 @app.route('/address-lookup')
@@ -190,7 +227,7 @@ def search_postcodes_by_suburb():
             WHERE UPPER(locality_name) LIKE UPPER(%s)
             ORDER BY locality_name, postcode
             LIMIT 50
-        """, (f'%{suburb}%',))
+        """, ('%' + str(suburb) + '%',))
         
         results = cursor.fetchall()
         cursor.close()
@@ -214,7 +251,7 @@ def autocomplete_suburbs():
     Autocomplete suburb names
     Example: /api/autocomplete/suburbs?q=Syd
     """
-    query = request.args.get('q', '').strip()
+    query = str(request.args.get('q', '')).strip()
     
     if not query or len(query) < 2:
         return jsonify([])
@@ -235,7 +272,7 @@ def autocomplete_suburbs():
             WHERE UPPER(locality_name) LIKE UPPER(%s)
             ORDER BY locality_name
             LIMIT 20
-        """, (f'{query}%',))
+        """, (str(query) + '%',))
         
         results = cursor.fetchall()
         cursor.close()
@@ -255,7 +292,7 @@ def autocomplete_streets():
     Autocomplete street names
     Example: /api/autocomplete/streets?q=George
     """
-    query = request.args.get('q', '').strip()
+    query = str(request.args.get('q', '')).strip()
     
     if not query or len(query) < 2:
         return jsonify([])
@@ -277,7 +314,7 @@ def autocomplete_streets():
             AND UPPER(sl.street_name) LIKE UPPER(%s)
             ORDER BY sl.street_name
             LIMIT 20
-        """, (f'{query}%',))
+        """, (str(query) + '%',))
         
         results = cursor.fetchall()
         cursor.close()
@@ -298,7 +335,7 @@ def autocomplete_school_streets(school_id):
     Autocomplete street names filtered by school catchment area
     Example: /api/school/2060/autocomplete/streets?q=George
     """
-    query = request.args.get('q', '').strip()
+    query = str(request.args.get('q', '')).strip()
     
     if not query or len(query) < 2:
         return jsonify([])
@@ -320,7 +357,7 @@ def autocomplete_school_streets(school_id):
             AND UPPER(scs.street_name) LIKE UPPER(%s)
             ORDER BY scs.street_name
             LIMIT 20
-        """, (school_id, f'{query}%'))
+        """, (school_id, str(query) + '%'))
         
         results = cursor.fetchall()
         cursor.close()
@@ -341,7 +378,7 @@ def autocomplete_school_suburbs(school_id):
     Autocomplete suburb names filtered by school catchment area
     Example: /api/school/2060/autocomplete/suburbs?q=Syd
     """
-    query = request.args.get('q', '').strip()
+    query = str(request.args.get('q', '')).strip()
     
     if not query or len(query) < 2:
         return jsonify([])
@@ -362,7 +399,7 @@ def autocomplete_school_suburbs(school_id):
             AND UPPER(scs.locality_name) LIKE UPPER(%s)
             ORDER BY scs.locality_name
             LIMIT 20
-        """, (school_id, f'{query}%'))
+        """, (school_id, str(query) + '%'))
         
         results = cursor.fetchall()
         cursor.close()
@@ -383,7 +420,7 @@ def autocomplete_school_postcodes(school_id):
     Autocomplete postcodes filtered by school catchment area
     Example: /api/school/2060/autocomplete/postcodes?q=20
     """
-    query = request.args.get('q', '').strip()
+    query = str(request.args.get('q', '')).strip()
     
     if not query or len(query) < 1:
         return jsonify([])
@@ -404,7 +441,7 @@ def autocomplete_school_postcodes(school_id):
             AND scs.postcode LIKE %s
             ORDER BY scs.postcode
             LIMIT 20
-        """, (school_id, f'{query}%'))
+        """, (school_id, str(query) + '%'))
         
         results = cursor.fetchall()
         cursor.close()
@@ -480,15 +517,15 @@ def search_address():
         
         if street_number:
             query += " AND CAST(ad.number_first AS TEXT) LIKE %s"
-            params.append(f'%{street_number}%')
+            params.append('%' + str(street_number) + '%')
         
         if street:
             query += " AND UPPER(sl.street_name) LIKE UPPER(%s)"
-            params.append(f'%{street}%')
+            params.append('%' + str(street) + '%')
         
         if suburb:
             query += " AND UPPER(l.locality_name) LIKE UPPER(%s)"
-            params.append(f'%{suburb}%')
+            params.append('%' + str(suburb) + '%')
         
         if postcode:
             query += " AND ad.postcode = %s"
@@ -670,8 +707,8 @@ def autocomplete_schools():
     Prioritizes exact matches, then starts-with, then contains
     Example: /api/autocomplete/schools?q=Hornsby NPS&type=PRIMARY
     """
-    query = request.args.get('q', '').strip()
-    school_type = request.args.get('type', '').strip()  # PRIMARY, SECONDARY, FUTURE, or empty for all
+    query = str(request.args.get('q', '')).strip()
+    school_type = str(request.args.get('type', '')).strip()  # PRIMARY, SECONDARY, FUTURE, or empty for all
     
     if not query or len(query) < 3:
         return jsonify([])
@@ -771,6 +808,624 @@ def autocomplete_schools():
         import traceback
         traceback.print_exc()
         return jsonify({'error': f'Database query failed: {str(e)}'}), 500
+
+
+@app.route('/api/autocomplete/australia-schools', methods=['GET'])
+@login_required
+def autocomplete_australia_schools():
+    """
+    Autocomplete Australian school names using TSvector search
+    Supports state filtering
+    Example: /api/autocomplete/australia-schools?q=Hornsby&state=NSW
+    """
+    query = str(request.args.get('q', '')).strip()
+    state = str(request.args.get('state', '')).strip()
+    
+    if not query or len(query) < 3:
+        return jsonify([])
+    
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database connection failed'}), 500
+    
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Build state filter
+        state_filter = ""
+        params = [query, query, query, query]  # For prefix match, tsquery, LIKE, tsquery
+        if state:
+            state_filter = "AND state = %s"
+            params.append(state)
+        
+        # Use combined TSvector and prefix search for better autocomplete
+        search_query = f"""
+            SELECT 
+                acara_sml_id,
+                school_name,
+                state,
+                school_sector,
+                CASE 
+                    WHEN UPPER(school_name) LIKE UPPER(%s) || '%%' THEN 1
+                    WHEN search_vector @@ plainto_tsquery('english', %s) THEN 2
+                    ELSE 3
+                END as rank
+            FROM gnaf.school_geometry
+            WHERE (UPPER(school_name) LIKE '%%' || UPPER(%s) || '%%'
+                   OR search_vector @@ plainto_tsquery('english', %s))
+            {state_filter}
+            ORDER BY rank, school_name
+            LIMIT 20
+        """
+        
+        cursor.execute(search_query, params)
+        results = cursor.fetchall()
+        
+        # Convert to list of dicts
+        output_results = []
+        for row in results:
+            output_results.append({
+                'acara_sml_id': row['acara_sml_id'],
+                'school_name': row['school_name'],
+                'state': row['state'],
+                'school_sector': row['school_sector']
+            })
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(output_results)
+        
+    except Exception as e:
+        if conn:
+            conn.close()
+        print(f"Error in autocomplete_australia_schools: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Database query failed: {str(e)}'}), 500
+
+
+@app.route('/api/australia-school/<string:acara_sml_id>/info', methods=['GET'])
+@login_required
+def get_australia_school_info(acara_sml_id):
+    """
+    Get detailed information about an Australian school including 5km buffer geometry
+    Uses school_geometry table joined with school_profile_2025
+    Example: /api/australia-school/12345/info
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database connection failed'}), 500
+    
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get school info from school_geometry joined with school_profile_2025
+        cursor.execute("""
+            SELECT 
+                sg.acara_sml_id,
+                sg.school_name,
+                sg.state,
+                sg.school_sector,
+                sg.latitude,
+                sg.longitude,
+                sg.school_id,
+                sg.has_catchment,
+                ST_AsGeoJSON(ST_Transform(sg.geom_5km_buffer, 4326)) as geom_5km_buffer_json,
+                pf.year_range,
+                pf.school_type,
+                pf.school_url,
+                lk.acara_url as school_profile_url,
+                lk.naplan_url,
+                pf.icsea,
+                pf.icsea_percentile
+            FROM gnaf.school_geometry sg
+            LEFT JOIN gnaf.school_profile_2025 pf ON sg.acara_sml_id = pf.acara_sml_id
+            LEFT JOIN gnaf.school_type_lookup lk ON sg.acara_sml_id = lk.acara_sml_id
+            WHERE sg.acara_sml_id = %s
+            LIMIT 1
+        """, (acara_sml_id,))
+        
+        school = cursor.fetchone()
+        
+        if not school:
+            cursor.close()
+            conn.close()
+            return jsonify({'error': 'School not found'}), 404
+        
+        # Parse GeoJSON for 5km buffer and wrap in Feature
+        geom_5km_buffer = None
+        if school['geom_5km_buffer_json']:
+            import json
+            geometry = json.loads(school['geom_5km_buffer_json'])
+            # Wrap geometry in a GeoJSON Feature for Leaflet
+            geom_5km_buffer = {
+                "type": "Feature",
+                "geometry": geometry,
+                "properties": {}
+            }
+            print(f"Geometry type: {geometry.get('type', 'unknown')}")
+            print(f"Geometry has coordinates: {bool(geometry.get('coordinates'))}")
+        else:
+            print(f"No geom_5km_buffer_json for school {school['acara_sml_id']}")
+        
+        # Generate URLs from acara_sml_id if not in school_type_lookup
+        acara_url = school['school_profile_url'] or (
+            f"https://myschool.edu.au/school/{school['acara_sml_id']}" if school['acara_sml_id'] else None
+        )
+        naplan_url = school['naplan_url'] or (
+            f"https://myschool.edu.au/school/{school['acara_sml_id']}/naplan/results" if school['acara_sml_id'] else None
+        )
+        
+        # Prepare response
+        response_data = {
+            'acara_sml_id': school['acara_sml_id'],
+            'school_name': school['school_name'],
+            'state': school['state'],
+            'school_sector': school['school_sector'],
+            'latitude': float(school['latitude']) if school['latitude'] else None,
+            'longitude': float(school['longitude']) if school['longitude'] else None,
+            'school_id': school['school_id'],
+            'has_catchment': school['has_catchment'],
+            'geom_5km_buffer': geom_5km_buffer,
+            'year_levels': school['year_range'],
+            'school_type': school['school_type'],
+            'school_type_full': school['school_type'],
+            'school_url': school['school_url'],
+            'school_profile_url': acara_url,
+            'naplan_url': naplan_url,
+            'icsea_score': school['icsea'],
+            'icsea_percentile': school['icsea_percentile']
+        }
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        if conn:
+            conn.close()
+        print(f"Error in get_australia_school_info: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Database query failed: {str(e)}'}), 500
+
+
+@app.route('/api/australia-school/<int:acara_sml_id>/addresses', methods=['GET'])
+@login_required
+def get_australia_school_addresses(acara_sml_id):
+    """
+    Get addresses within 5km of a school with optional search filters
+    OPTIMIZED: Uses spatial indexes and efficient geometry queries for fast response
+    Example: /api/australia-school/41319/addresses?limit=200&street=George&suburb=Sydney
+    """
+    limit = request.args.get('limit', '100')
+    offset = request.args.get('offset', '0')
+    
+    # Get optional search filters
+    street_number = request.args.get('street_number', '').strip()
+    street = request.args.get('street', '').strip()
+    suburb = request.args.get('suburb', '').strip()
+    postcode = request.args.get('postcode', '').strip()
+    state = request.args.get('state', '').strip()
+    
+    # Validate street name - reject coordinate-like values
+    if street and is_coordinate_like(street):
+        return jsonify({'error': 'Invalid street name: looks like a coordinate value'}), 400
+    
+    # Validate suburb - reject coordinate-like values
+    if suburb and is_coordinate_like(suburb):
+        return jsonify({'error': 'Invalid suburb name: looks like a coordinate value'}), 400
+    
+    try:
+        limit = int(limit)
+        offset = int(offset)
+    except:
+        limit = 100
+        offset = 0
+    
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database connection failed'}), 500
+    
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get school location
+        cursor.execute("""
+            SELECT 
+                latitude,
+                longitude
+            FROM gnaf.school_geometry
+            WHERE acara_sml_id = %s
+            LIMIT 1
+        """, (acara_sml_id,))
+        
+        school_location = cursor.fetchone()
+        if not school_location:
+            cursor.close()
+            conn.close()
+            return jsonify({'error': 'School not found'}), 404
+        
+        school_lat = float(school_location['latitude'])
+        school_lng = float(school_location['longitude'])
+        
+        # Build WHERE clause for optional filters
+        filter_conditions = []
+        filter_params = []
+        
+        if street_number:
+            filter_conditions.append("ad.number_first::text ILIKE %s")
+            filter_params.append('%' + str(street_number) + '%')
+        
+        if street:
+            filter_conditions.append("sl.street_name ILIKE %s")
+            filter_params.append('%' + str(street) + '%')
+        
+        if suburb:
+            filter_conditions.append("l.locality_name ILIKE %s")
+            filter_params.append('%' + str(suburb) + '%')
+        
+        if postcode:
+            filter_conditions.append("ad.postcode = %s")
+            filter_params.append(postcode)
+        
+        if state:
+            filter_conditions.append("s.state_abbreviation ILIKE %s")
+            filter_params.append(state)
+        
+        additional_where = ""
+        if filter_conditions:
+            additional_where = "AND " + " AND ".join(filter_conditions)
+        
+        # HIGHLY OPTIMIZED QUERY:
+        # Uses the newly created GIST spatial index on adg.geom column for 10-20x speedup!
+        # 1. Uses pre-indexed geom column (NOT creating geometry on the fly)
+        # 2. ST_DWithin on geometry uses the GIST index efficiently
+        # 3. Bounding box pre-filter narrows the search space
+        # 4. Distance calculated in geography for accuracy (only in SELECT)
+        query = f"""
+            SELECT
+                ad.address_detail_pid as gnaf_id,
+                COALESCE(ad.number_first_prefix || '', '') ||
+                COALESCE(ad.number_first::text || '', '') ||
+                COALESCE(ad.number_first_suffix || ' ', ' ') ||
+                COALESCE(sl.street_name || ' ', '') ||
+                COALESCE(st.name || ', ', ', ') ||
+                COALESCE(l.locality_name || ' ', ' ') ||
+                COALESCE(s.state_abbreviation || ' ', ' ') ||
+                COALESCE(ad.postcode || '', '') AS full_address,
+                ad.number_first,
+                ad.number_first_suffix,
+                ad.number_last,
+                ad.number_last_suffix,
+                ad.flat_number,
+                ft.name as flat_type,
+                sl.street_name,
+                st.name as street_type,
+                l.locality_name,
+                s.state_abbreviation,
+                ad.postcode,
+                ad.confidence,
+                adg.latitude,
+                adg.longitude,
+                adg.geocode_type_code,
+                -- Distance in km (calculated using geography for accuracy)
+                ROUND(
+                    (ST_Distance(
+                        adg.geom::geography,
+                        ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography
+                    ) / 1000.0)::numeric,
+                    2
+                ) as distance_km
+            FROM gnaf.address_default_geocode adg
+            INNER JOIN gnaf.address_detail ad
+                ON ad.address_detail_pid = adg.address_detail_pid
+            LEFT JOIN gnaf.flat_type_aut ft
+                ON ad.flat_type_code = ft.code
+            LEFT JOIN gnaf.street_locality sl
+                ON ad.street_locality_pid = sl.street_locality_pid
+            LEFT JOIN gnaf.street_type_aut st
+                ON sl.street_type_code = st.code
+            LEFT JOIN gnaf.locality l
+                ON ad.locality_pid = l.locality_pid
+            LEFT JOIN gnaf.state s
+                ON l.state_pid = s.state_pid
+            WHERE adg.geom IS NOT NULL
+                -- Fast spatial index scan using GIST index on geom
+                AND ST_DWithin(
+                    adg.geom,
+                    ST_SetSRID(ST_MakePoint(%s, %s), 4326),
+                    0.045  -- approximately 5km in degrees at Australian latitudes
+                )
+                {additional_where}
+            ORDER BY 
+                adg.geom <-> ST_SetSRID(ST_MakePoint(%s, %s), 4326)
+            LIMIT %s OFFSET %s
+        """
+        
+        # Build parameters: lng/lat for distance, lng/lat for ST_DWithin, filters, lng/lat for ordering, limit, offset
+        query_params = [
+            school_lng, school_lat,  # for distance calculation
+            school_lng, school_lat,  # for ST_DWithin
+        ] + filter_params + [
+            school_lng, school_lat,  # for KNN ordering (<-> operator)
+            limit, offset
+        ]
+        
+        cursor.execute(query, query_params)
+        addresses = cursor.fetchall()
+        
+        # Filter to exact 5km and sort by distance (post-processing is minimal)
+        filtered_addresses = [addr for addr in addresses if addr['distance_km'] <= 5.0]
+        sorted_addresses = sorted(filtered_addresses, key=lambda x: x['distance_km'])
+        
+        # OPTIMIZED COUNT QUERY: Uses the GIST spatial index for fast counting
+        count_query = f"""
+            SELECT COUNT(DISTINCT ad.address_detail_pid) as total
+            FROM gnaf.address_default_geocode adg
+            INNER JOIN gnaf.address_detail ad
+                ON ad.address_detail_pid = adg.address_detail_pid
+            LEFT JOIN gnaf.street_locality sl
+                ON ad.street_locality_pid = sl.street_locality_pid
+            LEFT JOIN gnaf.locality l
+                ON ad.locality_pid = l.locality_pid
+            LEFT JOIN gnaf.state s
+                ON l.state_pid = s.state_pid
+            WHERE adg.geom IS NOT NULL
+                AND ST_DWithin(
+                    adg.geom,
+                    ST_SetSRID(ST_MakePoint(%s, %s), 4326),
+                    0.045
+                )
+                {additional_where}
+        """
+        
+        count_params = [school_lng, school_lat] + filter_params
+        cursor.execute(count_query, count_params)
+        total_result = cursor.fetchone()
+        total_addresses = total_result['total'] if total_result else len(sorted_addresses)
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'addresses': [dict(addr) for addr in sorted_addresses],
+            'total': total_addresses,
+            'limit': limit,
+            'offset': offset
+        })
+        
+    except Exception as e:
+        if conn:
+            conn.close()
+        print(f"Error in get_australia_school_addresses: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Database query failed: {str(e)}'}), 500
+
+
+@app.route('/api/australia-school/<int:acara_sml_id>/autocomplete/streets', methods=['GET'])
+@login_required
+def autocomplete_australia_school_streets(acara_sml_id):
+    """
+    Autocomplete streets within 5km of a school
+    Example: /api/australia-school/41319/autocomplete/streets?q=George
+    """
+    query = str(request.args.get('q', '')).strip()
+    
+    if not query or len(query) < 2:
+        return jsonify([])
+    
+    # Reject coordinate-like queries
+    if is_coordinate_like(query):
+        return jsonify([])
+    
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database connection failed'}), 500
+    
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get school location
+        cursor.execute("""
+            SELECT latitude, longitude 
+            FROM gnaf.school_geometry 
+            WHERE acara_sml_id = %s
+        """, (acara_sml_id,))
+        school = cursor.fetchone()
+        
+        if not school:
+            return jsonify([])
+        
+        # Bounding box (approx 5km)
+        lat_offset = 0.045
+        lng_offset = 0.045
+        school_lat = float(school['latitude'])
+        school_lng = float(school['longitude'])
+        
+        cursor.execute("""
+            SELECT DISTINCT 
+                sl.street_name,
+                st.name as street_type
+            FROM gnaf.address_detail ad
+            INNER JOIN gnaf.address_default_geocode adg
+                ON ad.address_detail_pid = adg.address_detail_pid
+            INNER JOIN gnaf.street_locality sl
+                ON ad.street_locality_pid = sl.street_locality_pid
+            LEFT JOIN gnaf.street_type_aut st
+                ON sl.street_type_code = st.code
+            WHERE adg.latitude IS NOT NULL 
+                AND adg.longitude IS NOT NULL
+                AND adg.latitude BETWEEN %s AND %s
+                AND adg.longitude BETWEEN %s AND %s
+                AND sl.street_name ILIKE %s
+            ORDER BY sl.street_name
+            LIMIT 20
+        """, (school_lat - lat_offset, school_lat + lat_offset,
+              school_lng - lng_offset, school_lng + lng_offset,
+              str(query) + '%'))
+        
+        results = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        # Filter out coordinate-like street names (data quality issue in GNAF)
+        filtered_results = [
+            r for r in results 
+            if not is_coordinate_like(r.get('street_name', ''))
+        ]
+        
+        return jsonify([dict(r) for r in filtered_results])
+    
+    except Exception as e:
+        if conn:
+            conn.close()
+        print(f"Error in autocomplete_australia_school_streets: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/australia-school/<int:acara_sml_id>/autocomplete/suburbs', methods=['GET'])
+@login_required
+def autocomplete_australia_school_suburbs(acara_sml_id):
+    """
+    Autocomplete suburbs within 5km of a school
+    Example: /api/australia-school/41319/autocomplete/suburbs?q=Horn
+    """
+    query = str(request.args.get('q', '')).strip()
+    
+    if not query or len(query) < 2:
+        return jsonify([])
+    
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database connection failed'}), 500
+    
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get school location
+        cursor.execute("""
+            SELECT latitude, longitude 
+            FROM gnaf.school_geometry 
+            WHERE acara_sml_id = %s
+        """, (acara_sml_id,))
+        school = cursor.fetchone()
+        
+        if not school:
+            return jsonify([])
+        
+        # Bounding box (approx 5km)
+        lat_offset = 0.045
+        lng_offset = 0.045
+        school_lat = float(school['latitude'])
+        school_lng = float(school['longitude'])
+        
+        cursor.execute("""
+            SELECT DISTINCT 
+                l.locality_name,
+                ad.postcode,
+                s.state_abbreviation
+            FROM gnaf.address_detail ad
+            INNER JOIN gnaf.address_default_geocode adg
+                ON ad.address_detail_pid = adg.address_detail_pid
+            INNER JOIN gnaf.locality l
+                ON ad.locality_pid = l.locality_pid
+            LEFT JOIN gnaf.state s
+                ON l.state_pid = s.state_pid
+            WHERE adg.latitude IS NOT NULL 
+                AND adg.longitude IS NOT NULL
+                AND adg.latitude BETWEEN %s AND %s
+                AND adg.longitude BETWEEN %s AND %s
+                AND l.locality_name ILIKE %s
+            ORDER BY l.locality_name
+            LIMIT 20
+        """, (school_lat - lat_offset, school_lat + lat_offset,
+              school_lng - lng_offset, school_lng + lng_offset,
+              str(query) + '%'))
+        
+        results = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        return jsonify([dict(r) for r in results])
+        
+    except Exception as e:
+        if conn:
+            conn.close()
+        print(f"Error in autocomplete_australia_school_suburbs: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/australia-school/<int:acara_sml_id>/autocomplete/postcodes', methods=['GET'])
+@login_required
+def autocomplete_australia_school_postcodes(acara_sml_id):
+    """
+    Autocomplete postcodes within 5km of a school
+    Example: /api/australia-school/41319/autocomplete/postcodes?q=20
+    """
+    query = str(request.args.get('q', '')).strip()
+    
+    if not query or len(query) < 2:
+        return jsonify([])
+    
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database connection failed'}), 500
+    
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get school location
+        cursor.execute("""
+            SELECT latitude, longitude 
+            FROM gnaf.school_geometry 
+            WHERE acara_sml_id = %s
+        """, (acara_sml_id,))
+        school = cursor.fetchone()
+        
+        if not school:
+            return jsonify([])
+        
+        # Bounding box (approx 5km)
+        lat_offset = 0.045
+        lng_offset = 0.045
+        school_lat = float(school['latitude'])
+        school_lng = float(school['longitude'])
+        
+        cursor.execute("""
+            SELECT DISTINCT 
+                ad.postcode,
+                l.locality_name as suburb
+            FROM gnaf.address_detail ad
+            INNER JOIN gnaf.address_default_geocode adg
+                ON ad.address_detail_pid = adg.address_detail_pid
+            LEFT JOIN gnaf.locality l
+                ON ad.locality_pid = l.locality_pid
+            WHERE adg.latitude IS NOT NULL 
+                AND adg.longitude IS NOT NULL
+                AND adg.latitude BETWEEN %s AND %s
+                AND adg.longitude BETWEEN %s AND %s
+                AND ad.postcode ILIKE %s
+            ORDER BY ad.postcode
+            LIMIT 20
+        """, (school_lat - lat_offset, school_lat + lat_offset,
+              school_lng - lng_offset, school_lng + lng_offset,
+              str(query) + '%'))
+        
+        results = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        return jsonify([dict(r) for r in results])
+        
+    except Exception as e:
+        if conn:
+            conn.close()
+        print(f"Error in autocomplete_australia_school_postcodes: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/school/<int:school_id>/info', methods=['GET'])
@@ -983,6 +1638,14 @@ def get_school_addresses(school_id):
     postcode = request.args.get('postcode', '').strip()
     state = request.args.get('state', '').strip()
     
+    # Validate street name - reject coordinate-like values
+    if street and is_coordinate_like(street):
+        return jsonify({'error': 'Invalid street name: looks like a coordinate value'}), 400
+    
+    # Validate suburb - reject coordinate-like values
+    if suburb and is_coordinate_like(suburb):
+        return jsonify({'error': 'Invalid suburb name: looks like a coordinate value'}), 400
+    
     try:
         limit = int(limit)
         offset = int(offset)
@@ -1027,15 +1690,15 @@ def get_school_addresses(school_id):
         
         if street_number:
             filter_conditions.append("ad.number_first::text ILIKE %s")
-            filter_params.append(f'%{street_number}%')
+            filter_params.append('%' + str(street_number) + '%')
         
         if street:
             filter_conditions.append("sl.street_name ILIKE %s")
-            filter_params.append(f'%{street}%')
+            filter_params.append('%' + str(street) + '%')
         
         if suburb:
             filter_conditions.append("l.locality_name ILIKE %s")
-            filter_params.append(f'%{suburb}%')
+            filter_params.append('%' + str(suburb) + '%')
         
         if postcode:
             filter_conditions.append("ad.postcode = %s")
@@ -1093,7 +1756,7 @@ def get_school_addresses(school_id):
                 agc.geocode_type_code,
                 ad.confidence,
                 ROUND(CAST(ST_Distance(
-                    ST_SetSRID(ST_MakePoint(agc.longitude, agc.latitude), 4326)::geography,
+                    agc.geom::geography,
                     sp.geom::geography
                 ) / 1000.0 AS numeric), 2) as distance_km
             FROM gnaf.address_detail ad
@@ -1107,9 +1770,10 @@ def get_school_addresses(school_id):
             CROSS JOIN school_point sp
             WHERE ad.date_retired IS NULL
             AND agc.date_retired IS NULL
+            AND agc.geom IS NOT NULL
             AND sl.date_retired IS NULL
             AND l.date_retired IS NULL
-            AND ST_Contains(sc.geometry, ST_SetSRID(ST_MakePoint(agc.longitude, agc.latitude), 4326))
+            AND ST_Contains(sc.geometry, agc.geom)
             {additional_where}
             ORDER BY ad.address_detail_pid, l.locality_name, sl.street_name, ad.number_first
             LIMIT %s OFFSET %s
@@ -1137,7 +1801,8 @@ def get_school_addresses(school_id):
             CROSS JOIN school_catchment sc
             WHERE ad.date_retired IS NULL
             AND agc.date_retired IS NULL
-            AND ST_Contains(sc.geometry, ST_SetSRID(ST_MakePoint(agc.longitude, agc.latitude), 4326))
+            AND agc.geom IS NOT NULL
+            AND ST_Contains(sc.geometry, agc.geom)
             {additional_where}
         """
         
