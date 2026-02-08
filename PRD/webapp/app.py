@@ -89,6 +89,13 @@ def school_search_page():
     return render_template('school_search.html')
 
 
+@app.route('/australia-school-search')
+@login_required
+def australia_school_search_page():
+    """Australia-wide school search page with 5km zones"""
+    return render_template('australia_school_search.html')
+
+
 @app.route('/address-lookup')
 def address_lookup_page():
     """Address lookup page"""
@@ -768,6 +775,163 @@ def autocomplete_schools():
         if conn:
             conn.close()
         print(f"Error in autocomplete_schools: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Database query failed: {str(e)}'}), 500
+
+
+@app.route('/api/autocomplete/australia-schools', methods=['GET'])
+@login_required
+def autocomplete_australia_schools():
+    """
+    Autocomplete Australian school names using TSvector search
+    Supports state filtering
+    Example: /api/autocomplete/australia-schools?q=Hornsby&state=NSW
+    """
+    query = request.args.get('q', '').strip()
+    state = request.args.get('state', '').strip()
+    
+    if not query or len(query) < 3:
+        return jsonify([])
+    
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database connection failed'}), 500
+    
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Build state filter
+        state_filter = ""
+        params = [query]
+        if state:
+            state_filter = "AND state = %s"
+            params.append(state)
+        
+        # Use TSvector search with optional state filter
+        search_query = f"""
+            SELECT 
+                acara_sml_id,
+                school_name,
+                state,
+                school_sector
+            FROM gnaf.school_geometry
+            WHERE search_vector @@ plainto_tsquery('english', %s)
+            {state_filter}
+            ORDER BY school_name
+            LIMIT 20
+        """
+        
+        cursor.execute(search_query, params)
+        results = cursor.fetchall()
+        
+        # Convert to list of dicts
+        output_results = []
+        for row in results:
+            output_results.append({
+                'acara_sml_id': row['acara_sml_id'],
+                'school_name': row['school_name'],
+                'state': row['state'],
+                'school_sector': row['school_sector']
+            })
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(output_results)
+        
+    except Exception as e:
+        if conn:
+            conn.close()
+        print(f"Error in autocomplete_australia_schools: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Database query failed: {str(e)}'}), 500
+
+
+@app.route('/api/australia-school/<string:acara_sml_id>/info', methods=['GET'])
+@login_required
+def get_australia_school_info(acara_sml_id):
+    """
+    Get detailed information about an Australian school including 5km buffer geometry
+    Uses school_geometry table joined with school_profile_2025
+    Example: /api/australia-school/12345/info
+    """
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database connection failed'}), 500
+    
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get school info from school_geometry joined with school_profile_2025
+        cursor.execute("""
+            SELECT 
+                sg.acara_sml_id,
+                sg.school_name,
+                sg.state,
+                sg.school_sector,
+                sg.latitude,
+                sg.longitude,
+                sg.school_id,
+                sg.has_catchment,
+                ST_AsGeoJSON(sg.geom_5km_buffer) as geom_5km_buffer_json,
+                pf.year_levels,
+                pf.school_type,
+                pf.school_url,
+                pf.myschool_url as school_profile_url,
+                pf.naplan_url,
+                pf.icsea_score,
+                pf.icsea_percentile
+            FROM gnaf.school_geometry sg
+            LEFT JOIN school_profile_2025 pf ON sg.acara_sml_id = pf.acara_sml_id
+            WHERE sg.acara_sml_id = %s
+            LIMIT 1
+        """, (acara_sml_id,))
+        
+        school = cursor.fetchone()
+        
+        if not school:
+            cursor.close()
+            conn.close()
+            return jsonify({'error': 'School not found'}), 404
+        
+        # Parse GeoJSON for 5km buffer
+        geom_5km_buffer = None
+        if school['geom_5km_buffer_json']:
+            import json
+            geom_5km_buffer = json.loads(school['geom_5km_buffer_json'])
+        
+        # Prepare response
+        response_data = {
+            'acara_sml_id': school['acara_sml_id'],
+            'school_name': school['school_name'],
+            'state': school['state'],
+            'school_sector': school['school_sector'],
+            'latitude': float(school['latitude']) if school['latitude'] else None,
+            'longitude': float(school['longitude']) if school['longitude'] else None,
+            'school_id': school['school_id'],
+            'has_catchment': school['has_catchment'],
+            'geom_5km_buffer': geom_5km_buffer,
+            'year_levels': school['year_levels'],
+            'school_type': school['school_type'],
+            'school_type_full': school['school_type'],
+            'school_url': school['school_url'],
+            'school_profile_url': school['school_profile_url'],
+            'naplan_url': school['naplan_url'],
+            'icsea_score': school['icsea_score'],
+            'icsea_percentile': school['icsea_percentile']
+        }
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        if conn:
+            conn.close()
+        print(f"Error in get_australia_school_info: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': f'Database query failed: {str(e)}'}), 500

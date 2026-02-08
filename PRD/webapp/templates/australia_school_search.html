@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Australia School Search - GNAF Address Lookup</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        .state-filter {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .sector-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .sector-badge.government {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .sector-badge.catholic {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .sector-badge.independent {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .catchment-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background: var(--primary-color);
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 600;
+            transition: all 0.2s;
+            margin-top: var(--spacing-md);
+        }
+
+        .catchment-button:hover {
+            background: #1e40af;
+            box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header with gradient -->
+        <header class="header">
+            <h1>Australia School Search</h1>
+            <p>Search schools across Australia and view 5km catchment zones</p>
+            <nav class="nav">
+                <a href="/">Home</a>
+                <a href="/search">Suburb Search</a>
+                <a href="/address-lookup">Address Lookup</a>
+                <a href="/school-search">School Catchment Search</a>
+                <a href="/australia-school-search" class="active">Australia School Search</a>
+            </nav>
+        </header>
+
+        <div class="hero-image">
+            <img src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1200&h=400&fit=crop&q=80"
+                alt="Students in classroom" loading="lazy">
+        </div>
+
+        <!-- Search Section -->
+        <section class="search-section">
+            <div class="search-card">
+                <h2>Search Australian Schools</h2>
+
+                <form id="australiaSchoolSearchForm" class="search-form">
+                    <div class="form-row state-filter">
+                        <div class="form-group" style="flex: 1;">
+                            <label for="stateFilter">Filter by State</label>
+                            <select id="stateFilter">
+                                <option value="">All States</option>
+                                <option value="NSW">New South Wales</option>
+                                <option value="VIC">Victoria</option>
+                                <option value="QLD">Queensland</option>
+                                <option value="SA">South Australia</option>
+                                <option value="WA">Western Australia</option>
+                                <option value="TAS">Tasmania</option>
+                                <option value="NT">Northern Territory</option>
+                                <option value="ACT">Australian Capital Territory</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 3;">
+                            <label for="schoolInput">School Name</label>
+                            <div class="autocomplete-wrapper">
+                                <input type="text" id="schoolInput"
+                                    placeholder="Start typing school name (min. 3 characters)..." autocomplete="off"
+                                    required>
+                                <div id="schoolSuggestions" class="autocomplete-dropdown"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Search School</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Loading Indicator -->
+        <div id="loadingIndicator" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+        </div>
+
+        <!-- School Info Section (Hidden initially) -->
+        <section id="schoolInfoSection" class="school-info-section" style="display: none;">
+            <div class="school-info-card">
+                <div class="school-header">
+                    <h2 id="schoolName">-</h2>
+                    <span id="schoolTypeBadge" class="badge">PRIMARY</span>
+                </div>
+                <div class="school-details">
+                    <div class="detail-item">
+                        <span class="detail-label">Year Levels:</span>
+                        <span id="yearLevels">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">School Type:</span>
+                        <span id="schoolType">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">School Sector:</span>
+                        <span id="schoolSectorBadge" class="sector-badge">-</span>
+                    </div>
+                    <div class="detail-item" id="schoolUrl-container" style="display: none;">
+                        <span class="detail-label">Website:</span>
+                        <a id="schoolUrl" href="#" target="_blank" class="school-url-link">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"
+                                style="display: inline; margin-right: 6px; vertical-align: middle;">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path
+                                    d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
+                                </path>
+                                <path d="M2 12h20"></path>
+                            </svg>
+                            <span id="schoolUrlText" style="color: white;">Visit Website</span>
+                        </a>
+                    </div>
+                    <div class="detail-item" id="schoolProfile-container" style="display: none;">
+                        <span class="detail-label">School Profile:</span>
+                        <a id="schoolProfile" href="#" target="_blank" class="school-url-link">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"
+                                style="display: inline; margin-right: 6px; vertical-align: middle;">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14,2 14,8 20,8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                <polyline points="10,9 9,9 8,9"></polyline>
+                            </svg>
+                            <span style="color: white;">View School Profile</span>
+                        </a>
+                    </div>
+                    <div class="detail-item" id="naplanScores-container" style="display: none;">
+                        <span class="detail-label">NAPLAN Scores:</span>
+                        <a id="naplanScores" href="#" target="_blank" class="school-url-link">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"
+                                style="display: inline; margin-right: 6px; vertical-align: middle;">
+                                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"></path>
+                                <path d="M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                                <path d="M9 12h6"></path>
+                                <path d="M9 16h6"></path>
+                            </svg>
+                            <span style="color: white;">NAPLAN Scores</span>
+                        </a>
+                    </div>
+                    <div class="detail-item" id="icsea-container" style="display: none;">
+                        <span class="detail-label">ICSEA Score:</span>
+                        <span id="icsea">-</span>
+                    </div>
+                    <div class="detail-item" id="icsea-percentile-container" style="display: none;">
+                        <span class="detail-label">ICSEA Percentile:</span>
+                        <span id="icsea-percentile">-</span>
+                    </div>
+                </div>
+
+                <!-- Catchment Zone Button (conditionally shown) -->
+                <div id="catchmentButtonContainer" style="display: none;">
+                    <a id="catchmentButton" href="#" class="catchment-button">
+                        View Catchment Zone →
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Map Section (Hidden initially) -->
+        <section id="mapSection" class="map-section" style="display: none;">
+            <div class="map-card">
+                <h3>5km Radius Zone</h3>
+                <p style="color: #666; margin-bottom: 15px;">This map shows a 5-kilometer radius around the school location</p>
+                <div id="schoolMap" style="height: 450px; border-radius: 4px; overflow: hidden;"></div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2026 GNAF Address Lookup | Data source: <a href="https://data.gov.au"
+                    target="_blank">Data.gov.au</a></p>
+        </footer>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        let map = null;
+        let selectedSchool = null;
+
+        // Initialize autocomplete
+        const schoolInput = document.getElementById('schoolInput');
+        const schoolSuggestions = document.getElementById('schoolSuggestions');
+        const stateFilter = document.getElementById('stateFilter');
+
+        schoolInput.addEventListener('input', async (e) => {
+            const query = e.target.value.trim();
+
+            if (query.length < 3) {
+                schoolSuggestions.innerHTML = '';
+                schoolSuggestions.style.display = 'none';
+                return;
+            }
+
+            try {
+                const state = stateFilter.value;
+                const url = `/api/autocomplete/australia-schools?q=${encodeURIComponent(query)}${state ? '&state=' + state : ''}`;
+                const response = await fetch(url);
+                const schools = await response.json();
+
+                if (schools.length > 0) {
+                    schoolSuggestions.innerHTML = schools.map(school => `
+                        <div class="autocomplete-item" data-acara-id="${school.acara_sml_id}">
+                            <strong>${school.school_name}</strong>
+                            <div style="font-size: 0.85rem; color: #666;">
+                                ${school.state} - ${school.school_sector}
+                            </div>
+                        </div>
+                    `).join('');
+                    schoolSuggestions.style.display = 'block';
+
+                    // Add click handlers
+                    document.querySelectorAll('.autocomplete-item').forEach(item => {
+                        item.addEventListener('click', () => {
+                            const acaraId = item.dataset.acaraId;
+                            const schoolName = item.querySelector('strong').textContent;
+                            schoolInput.value = schoolName;
+                            schoolSuggestions.style.display = 'none';
+                            selectedSchool = acaraId;
+                        });
+                    });
+                } else {
+                    schoolSuggestions.innerHTML = '<div class="autocomplete-item">No schools found</div>';
+                    schoolSuggestions.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error fetching schools:', error);
+            }
+        });
+
+        // Close suggestions when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.autocomplete-wrapper')) {
+                schoolSuggestions.style.display = 'none';
+            }
+        });
+
+        // Form submission
+        document.getElementById('australiaSchoolSearchForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!selectedSchool) {
+                alert('Please select a school from the suggestions');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const response = await fetch(`/api/australia-school/${selectedSchool}/info`);
+                const data = await response.json();
+
+                if (data.error) {
+                    alert(data.error);
+                    hideLoading();
+                    return;
+                }
+
+                displaySchoolInfo(data);
+                displayMap(data);
+
+                hideLoading();
+            } catch (error) {
+                console.error('Error loading school data:', error);
+                alert('Error loading school information');
+                hideLoading();
+            }
+        });
+
+        function displaySchoolInfo(data) {
+            document.getElementById('schoolName').textContent = data.school_name;
+            document.getElementById('schoolTypeBadge').textContent = data.school_type || 'SCHOOL';
+            document.getElementById('yearLevels').textContent = data.year_levels || 'N/A';
+            document.getElementById('schoolType').textContent = data.school_type_full || 'N/A';
+
+            // Display sector as badge
+            const sectorBadge = document.getElementById('schoolSectorBadge');
+            sectorBadge.textContent = data.school_sector || 'N/A';
+            sectorBadge.className = 'sector-badge';
+            if (data.school_sector) {
+                sectorBadge.classList.add(data.school_sector.toLowerCase());
+            }
+
+            // Website
+            if (data.school_url) {
+                document.getElementById('schoolUrl').href = data.school_url;
+                document.getElementById('schoolUrl-container').style.display = 'flex';
+            } else {
+                document.getElementById('schoolUrl-container').style.display = 'none';
+            }
+
+            // School Profile
+            if (data.school_profile_url) {
+                document.getElementById('schoolProfile').href = data.school_profile_url;
+                document.getElementById('schoolProfile-container').style.display = 'flex';
+            } else {
+                document.getElementById('schoolProfile-container').style.display = 'none';
+            }
+
+            // NAPLAN Scores
+            if (data.naplan_url) {
+                document.getElementById('naplanScores').href = data.naplan_url;
+                document.getElementById('naplanScores-container').style.display = 'flex';
+            } else {
+                document.getElementById('naplanScores-container').style.display = 'none';
+            }
+
+            // ICSEA Score
+            if (data.icsea_score) {
+                document.getElementById('icsea').textContent = data.icsea_score;
+                document.getElementById('icsea-container').style.display = 'flex';
+            } else {
+                document.getElementById('icsea-container').style.display = 'none';
+            }
+
+            // ICSEA Percentile
+            if (data.icsea_percentile) {
+                document.getElementById('icsea-percentile').textContent = data.icsea_percentile + '%';
+                document.getElementById('icsea-percentile-container').style.display = 'flex';
+            } else {
+                document.getElementById('icsea-percentile-container').style.display = 'none';
+            }
+
+            // Catchment Zone Button (only show if has_catchment = 'Y' and school_id exists)
+            if (data.has_catchment === 'Y' && data.school_id) {
+                document.getElementById('catchmentButton').href = `/school-search?school_id=${data.school_id}`;
+                document.getElementById('catchmentButtonContainer').style.display = 'block';
+            } else {
+                document.getElementById('catchmentButtonContainer').style.display = 'none';
+            }
+
+            document.getElementById('schoolInfoSection').style.display = 'block';
+        }
+
+        function displayMap(data) {
+            const mapSection = document.getElementById('mapSection');
+            mapSection.style.display = 'block';
+
+            // Initialize map if not already done
+            if (!map) {
+                map = L.map('schoolMap');
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(map);
+            }
+
+            // Clear existing layers
+            map.eachLayer(layer => {
+                if (layer instanceof L.GeoJSON || layer instanceof L.Marker) {
+                    map.removeLayer(layer);
+                }
+            });
+
+            // Add school marker
+            if (data.latitude && data.longitude) {
+                const schoolMarker = L.marker([data.latitude, data.longitude]).addTo(map);
+                schoolMarker.bindPopup(`<strong>${data.school_name}</strong><br>${data.school_sector}`);
+            }
+
+            // Add 5km buffer if available
+            if (data.geom_5km_buffer) {
+                const bufferLayer = L.geoJSON(data.geom_5km_buffer, {
+                    style: {
+                        color: '#3b82f6',
+                        weight: 2,
+                        opacity: 0.8,
+                        fillColor: '#3b82f6',
+                        fillOpacity: 0.1
+                    }
+                }).addTo(map);
+
+                map.fitBounds(bufferLayer.getBounds(), { padding: [20, 20] });
+            } else if (data.latitude && data.longitude) {
+                map.setView([data.latitude, data.longitude], 13);
+            }
+
+            // Scroll to map
+            mapSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function showLoading() {
+            document.getElementById('loadingIndicator').style.display = 'flex';
+            document.getElementById('schoolInfoSection').style.display = 'none';
+            document.getElementById('mapSection').style.display = 'none';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingIndicator').style.display = 'none';
+        }
+    </script>
+</body>
+
+</html>
