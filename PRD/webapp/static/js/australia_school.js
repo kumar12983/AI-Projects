@@ -526,9 +526,23 @@ async function loadAddresses(isInitialLoad = false) {
         console.log('Addresses response:', data);
 
         if (data.error) {
-            alert(data.error);
+            // Display error message near the map instead of alert popup
+            const mapErrorMessage = document.getElementById('mapErrorMessage');
+            const mapErrorText = document.getElementById('mapErrorText');
+            if (mapErrorMessage && mapErrorText) {
+                mapErrorText.textContent = data.error;
+                mapErrorMessage.style.display = 'block';
+                // Scroll to the error message
+                mapErrorMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
             hideLoading();
             return;
+        }
+        
+        // Hide error message if addresses loaded successfully
+        const mapErrorMessage = document.getElementById('mapErrorMessage');
+        if (mapErrorMessage) {
+            mapErrorMessage.style.display = 'none';
         }
 
         allAddresses = data.addresses;
@@ -548,7 +562,14 @@ async function loadAddresses(isInitialLoad = false) {
         }
     } catch (error) {
         console.error('Error loading addresses:', error);
-        alert('Error loading addresses');
+        // Display error message near the map instead of alert popup
+        const mapErrorMessage = document.getElementById('mapErrorMessage');
+        const mapErrorText = document.getElementById('mapErrorText');
+        if (mapErrorMessage && mapErrorText) {
+            mapErrorText.textContent = 'Error loading addresses. Please try again.';
+            mapErrorMessage.style.display = 'block';
+            mapErrorMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
         hideLoading();
     }
 }

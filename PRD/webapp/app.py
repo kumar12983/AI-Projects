@@ -907,8 +907,8 @@ def get_australia_school_info(acara_sml_id):
                 sg.school_name,
                 sg.state,
                 sg.school_sector,
-                sg.latitude,
-                sg.longitude,
+                pf.latitude,
+                pf.longitude,
                 sg.school_id,
                 sg.has_catchment,
                 ST_AsGeoJSON(ST_Transform(sg.geom_5km_buffer, 4326)) as geom_5km_buffer_json,
@@ -1032,12 +1032,12 @@ def get_australia_school_addresses(acara_sml_id):
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # Get school location
+        # Get school location from school_profile_2025 (updated with coordinates from school_location)
         cursor.execute("""
             SELECT 
                 latitude,
                 longitude
-            FROM gnaf.school_geometry
+            FROM gnaf.school_profile_2025
             WHERE acara_sml_id = %s
             LIMIT 1
         """, (acara_sml_id,))
@@ -1047,6 +1047,12 @@ def get_australia_school_addresses(acara_sml_id):
             cursor.close()
             conn.close()
             return jsonify({'error': 'School not found'}), 404
+        
+        # Check if coordinates exist
+        if school_location['latitude'] is None or school_location['longitude'] is None:
+            cursor.close()
+            conn.close()
+            return jsonify({'error': 'School coordinates not available for this location. Unable to search addresses within 5km radius.'}), 200
         
         school_lat = float(school_location['latitude'])
         school_lng = float(school_location['longitude'])
@@ -1240,6 +1246,10 @@ def autocomplete_australia_school_streets(acara_sml_id):
         if not school:
             return jsonify([])
         
+        # Check if coordinates exist
+        if school['latitude'] is None or school['longitude'] is None:
+            return jsonify([])
+        
         # Bounding box (approx 5km)
         lat_offset = 0.045
         lng_offset = 0.045
@@ -1317,6 +1327,10 @@ def autocomplete_australia_school_suburbs(acara_sml_id):
         if not school:
             return jsonify([])
         
+        # Check if coordinates exist
+        if school['latitude'] is None or school['longitude'] is None:
+            return jsonify([])
+        
         # Bounding box (approx 5km)
         lat_offset = 0.045
         lng_offset = 0.045
@@ -1387,6 +1401,10 @@ def autocomplete_australia_school_postcodes(acara_sml_id):
         school = cursor.fetchone()
         
         if not school:
+            return jsonify([])
+        
+        # Check if coordinates exist
+        if school['latitude'] is None or school['longitude'] is None:
             return jsonify([])
         
         # Bounding box (approx 5km)
@@ -2020,6 +2038,7 @@ def premium_analytics():
 # ============================================
 # Error Handlers
 # ============================================
+@app.errorhandler(404)
 def not_found(error):
     return jsonify({'error': 'Not found'}), 404
 
