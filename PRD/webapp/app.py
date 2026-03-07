@@ -947,6 +947,21 @@ def get_australia_school_info(acara_sml_id):
             conn.close()
             return jsonify({'error': 'School not found'}), 404
         
+        # For VIC schools (or any school where has_catchment is not already 'Y'),
+        # check gnaf.school_catchments for a matching entry by school name + state
+        vic_catchment_id = None
+        if school['has_catchment'] != 'Y' and school['state'] == 'VIC':
+            cursor.execute("""
+                SELECT school_id
+                FROM gnaf.school_catchments
+                WHERE state = 'VIC'
+                  AND LOWER(TRIM(school_name)) = LOWER(TRIM(%s))
+                LIMIT 1
+            """, (school['school_name'],))
+            vic_row = cursor.fetchone()
+            if vic_row:
+                vic_catchment_id = vic_row['school_id']
+        
         # Parse GeoJSON for 5km buffer and wrap in Feature
         geom_5km_buffer = None
         if school['geom_5km_buffer_json']:
@@ -971,6 +986,10 @@ def get_australia_school_info(acara_sml_id):
             f"https://myschool.edu.au/school/{school['acara_sml_id']}/naplan/results" if school['acara_sml_id'] else None
         )
         
+        # Resolve effective school_id and has_catchment (VIC override)
+        effective_school_id = vic_catchment_id if vic_catchment_id else school['school_id']
+        effective_has_catchment = 'Y' if (school['has_catchment'] == 'Y' or vic_catchment_id) else school['has_catchment']
+        
         # Prepare response
         response_data = {
             'acara_sml_id': school['acara_sml_id'],
@@ -979,8 +998,8 @@ def get_australia_school_info(acara_sml_id):
             'school_sector': school['school_sector'],
             'latitude': float(school['latitude']) if school['latitude'] else None,
             'longitude': float(school['longitude']) if school['longitude'] else None,
-            'school_id': school['school_id'],
-            'has_catchment': school['has_catchment'],
+            'school_id': effective_school_id,
+            'has_catchment': effective_has_catchment,
             'geom_5km_buffer': geom_5km_buffer,
             'year_levels': school['year_range'],
             'school_type': school['school_type'],
@@ -1482,8 +1501,12 @@ def get_school_info(school_id):
                 s.school_id,
                 s.school_name,
                 s.school_type,
-                COALESCE(pf.latitude, s.school_lat) as school_latitude,
-                COALESCE(pf.longitude, s.school_lng) as school_longitude
+                s.state,
+                s.campus_name,
+                s.centroid_lat,
+                s.centroid_lng,
+                COALESCE(pf.latitude, s.school_lat, s.centroid_lat) as school_latitude,
+                COALESCE(pf.longitude, s.school_lng, s.centroid_lng) as school_longitude
             FROM gnaf.school_catchments s
             LEFT JOIN gnaf.school_type_lookup pf ON pf.school_id = s.school_id
             WHERE s.school_id::text = %s
@@ -1597,6 +1620,21 @@ def get_school_info(school_id):
         
         stats = cursor.fetchone()
         print(f"[DEBUG] stats: {stats}")
+        
+        # For VIC schools: aggregate all year_level_codes before closing cursor
+        vic_year_codes = None
+        if catchment_info.get('state') == 'VIC':
+            cursor.execute("""
+                SELECT ARRAY_AGG(DISTINCT year_level_code ORDER BY year_level_code) as codes
+                FROM gnaf.school_catchments
+                WHERE school_id::text = %s
+                  AND year_level_code IS NOT NULL
+                  AND TRIM(year_level_code) != ''
+            """, (str(school_id),))
+            vic_yr = cursor.fetchone()
+            if vic_yr and vic_yr['codes']:
+                vic_year_codes = vic_yr['codes']
+        
         cursor.close()
         conn.close()
         
@@ -1610,6 +1648,19 @@ def get_school_info(school_id):
                 if year_data.get(yr_key) == 'Y':
                     year_levels.append(str(i))
         
+        # For VIC schools: build year_levels and year_level_code display from catchment codes
+        vic_year_level_display = None
+        if not year_levels and vic_year_codes:
+            has_p6 = 'P6' in vic_year_codes
+            numeric = sorted([int(c) for c in vic_year_codes if c != 'P6' and c.isdigit()])
+            parts = []
+            if has_p6:
+                parts.append('Prep - Year 6')
+            if numeric:
+                parts.append('Year ' + ', '.join(str(n) for n in numeric))
+            vic_year_level_display = ' / '.join(parts)
+            year_levels = [vic_year_level_display] if vic_year_level_display else []
+        
         print(f"[DEBUG] year_levels: {year_levels}")
         
         # Build result - ICSEA only if lookup matched BOTH school_id and catchment_school_name
@@ -1617,6 +1668,9 @@ def get_school_info(school_id):
             'school_id': str(catchment_info['school_id']),
             'school_name': catchment_info['school_name'],
             'school_type': catchment_info['school_type'],
+            'state': catchment_info.get('state'),
+            'campus_name': catchment_info.get('campus_name'),
+            'year_level_code': vic_year_level_display,
             'school_sector': lookup_info['school_sector'] if lookup_info else None,
             'school_type_name': lookup_info['school_type'] if lookup_info else None,
             'school_url': lookup_info['school_url'] if lookup_info else None,
@@ -1636,7 +1690,7 @@ def get_school_info(school_id):
                 'latitude': catchment_info.get('school_latitude'),
                 'longitude': catchment_info.get('school_longitude'),
                 'suburb': lookup_info['suburb'] if lookup_info else None,
-                'state': lookup_info['state'] if lookup_info else None,
+                'state': catchment_info.get('state') or (lookup_info['state'] if lookup_info else None),
                 'postcode': lookup_info['postcode'] if lookup_info else None
             } if (catchment_info.get('school_latitude') and catchment_info.get('school_longitude')) else None
         }
@@ -1891,15 +1945,15 @@ def get_school_boundary(school_id):
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # Get boundary as GeoJSON
+        # Get boundary as GeoJSON - ST_Union merges all year-level polygons for VIC schools
         cursor.execute("""
             SELECT 
-                ST_AsGeoJSON(geometry) as geojson,
-                school_name,
-                school_type
+                ST_AsGeoJSON(ST_Union(geometry)) as geojson,
+                MAX(school_name) as school_name,
+                MAX(school_type) as school_type
             FROM gnaf.school_catchments
             WHERE school_id = %s
-            LIMIT 1
+            GROUP BY school_id
         """, (school_id,))
         
         result = cursor.fetchone()

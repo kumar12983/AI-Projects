@@ -543,8 +543,10 @@ function displaySchoolInfo(info) {
     console.log('displaySchoolInfo received:', info);
 
     document.getElementById('schoolName').textContent = info.school_name;
-    document.getElementById('schoolTypeBadge').textContent = info.school_type;
-    document.getElementById('schoolTypeBadge').className = `badge badge-${info.school_type.toLowerCase()}`;
+    document.getElementById('schoolTypeBadge').textContent = info.school_type || 'SCHOOL';
+    if (info.school_type) {
+        document.getElementById('schoolTypeBadge').className = `badge badge-${info.school_type.toLowerCase()}`;
+    }
     
     // Display state badge for VIC schools
     const stateBadge = document.getElementById('stateBadge');
@@ -565,16 +567,11 @@ function displaySchoolInfo(info) {
         campusContainer.style.display = 'none';
     }
     
-    // Display VIC-specific year level code
+    // Display VIC-specific year level code (pre-formatted from backend)
     const yearLevelContainer = document.getElementById('year-level-container');
     const yearLevelCode = document.getElementById('yearLevelCode');
     if (yearLevelContainer && yearLevelCode && info.year_level_code && info.year_level_code.trim()) {
-        // Format year level code nicely
-        let yearLevelDisplay = info.year_level_code;
-        if (yearLevelDisplay === 'P6') yearLevelDisplay = 'Prep - Year 6';
-        else if (!isNaN(yearLevelDisplay)) yearLevelDisplay = `Year ${yearLevelDisplay}`;
-        
-        yearLevelCode.textContent = yearLevelDisplay;
+        yearLevelCode.textContent = info.year_level_code;
         yearLevelContainer.style.display = 'flex';
     } else if (yearLevelContainer) {
         yearLevelContainer.style.display = 'none';
