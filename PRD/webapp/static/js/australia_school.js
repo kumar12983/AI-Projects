@@ -727,7 +727,7 @@ function displayAddresses(addresses, total, append = false) {
 
                     return `
                         <!-- Main row (always visible) -->
-                        <tr class="results-row-main" data-row-index="${globalIndex}" data-lat="${addr.latitude || ''}" data-lng="${addr.longitude || ''}" onclick="toggleRowDetails(${globalIndex})">
+                        <tr class="results-row-main" data-row-index="${globalIndex}" data-lat="${addr.latitude || ''}" data-lng="${addr.longitude || ''}" data-state="${addr.state_abbreviation || 'NSW'}" onclick="toggleRowDetails(${globalIndex})">
                             <td><span class="expand-icon">▸</span></td>
                             <td>
                                 <strong>${fullAddress}</strong><br>
@@ -938,14 +938,36 @@ async function loadSchoolCatchments(index, lat, lng) {
         return;
     }
     
+    const mainRow = document.querySelector(`tr.results-row-main[data-row-index="${index}"]`);
+    const state = mainRow ? (mainRow.dataset.state || 'NSW') : 'NSW';
+    
     try {
-        const response = await fetch(`/api/address/schools?lat=${lat}&lng=${lng}`);
+        const response = await fetch(`/api/address/schools?lat=${lat}&lng=${lng}&state=${state}`);
         const data = await response.json();
         
         if (data.schools && data.schools.length > 0) {
-            catchmentDetail.innerHTML = data.schools.map(school => {
+            // Group by school_id to combine multiple year levels
+            const schoolMap = new Map();
+            data.schools.forEach(school => {
+                if (!schoolMap.has(school.school_id)) {
+                    schoolMap.set(school.school_id, { ...school, yearLevels: [] });
+                }
+                if (school.year_level_code && school.year_level_code.trim()) {
+                    schoolMap.get(school.school_id).yearLevels.push(school.year_level_code.trim());
+                }
+            });
+            catchmentDetail.innerHTML = Array.from(schoolMap.values()).map(school => {
                 const schoolLink = `/school-search?school_id=${school.school_id}`;
-                return `<a href="${schoolLink}" style="color: #2563eb; text-decoration: none; display: block; margin-bottom: 4px;">${school.school_name} <span style="color: #666; font-size: 0.85rem;">(${school.school_type})</span></a>`;
+                let yearText = '';
+                if (school.yearLevels.length > 0) {
+                    const hasP6 = school.yearLevels.includes('P6');
+                    const numericLevels = school.yearLevels.filter(y => y !== 'P6' && !isNaN(y)).map(Number).sort((a, b) => a - b);
+                    const parts = [];
+                    if (hasP6) parts.push('Prep-Yr 6');
+                    if (numericLevels.length > 0) parts.push(`Yr ${numericLevels.join(', ')}`);
+                    yearText = parts.length > 0 ? `, ${parts.join(', ')}` : '';
+                }
+                return `<a href="${schoolLink}" style="color: #2563eb; text-decoration: none; display: block; margin-bottom: 4px;">${school.school_name} <span style="color: #666; font-size: 0.85rem;">(${school.school_type}${yearText})</span></a>`;
             }).join('');
         } else {
             catchmentDetail.innerHTML = '<span style="color: #999;">No school catchments</span>';

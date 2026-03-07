@@ -452,43 +452,44 @@ document.addEventListener('DOMContentLoaded', () => {
                         </a>
                     `;
                 } else if (data.schools && data.schools.length > 0) {
-                    const schoolsHtml = data.schools.map(school => {
-                        const typeColors = {
-                            'PRIMARY': '#2196F3',
-                            'SECONDARY': '#4CAF50',
-                            'FUTURE': '#FF9800',
-                            'JUNIOR_SECONDARY': '#9C27B0',
-                            'SENIOR_SECONDARY': '#FF5722',
-                            'SINGLE_SEX': '#E91E63'
-                        };
-                        const color = typeColors[school.school_type] || '#999';
-                        
-                        // Build school display name with VIC-specific fields
-                        let schoolDisplayName = school.school_name;
-                        let schoolSubtext = '';
-                        
-                        // Add campus name if available (VIC schools)
-                        if (school.campus_name && school.campus_name.trim()) {
-                            schoolSubtext += ` - ${school.campus_name}`;
+                    const typeColors = {
+                        'PRIMARY': '#2196F3',
+                        'SECONDARY': '#4CAF50',
+                        'FUTURE': '#FF9800',
+                        'JUNIOR_SECONDARY': '#9C27B0',
+                        'SENIOR_SECONDARY': '#FF5722',
+                        'SINGLE_SEX': '#E91E63'
+                    };
+                    // Group by school_id to combine multiple year levels
+                    const schoolMap = new Map();
+                    data.schools.forEach(school => {
+                        if (!schoolMap.has(school.school_id)) {
+                            schoolMap.set(school.school_id, { ...school, yearLevels: [] });
                         }
-                        
-                        // Add year level code if available (VIC schools)
                         if (school.year_level_code && school.year_level_code.trim()) {
-                            let yearDisplay = school.year_level_code;
-                            if (yearDisplay === 'P6') yearDisplay = 'Prep-Yr 6';
-                            else if (!isNaN(yearDisplay)) yearDisplay = `Yr ${yearDisplay}`;
-                            schoolSubtext += ` (${yearDisplay})`;
+                            schoolMap.get(school.school_id).yearLevels.push(school.year_level_code.trim());
                         }
-
+                    });
+                    const schoolsHtml = Array.from(schoolMap.values()).map(school => {
+                        const color = typeColors[school.school_type] || '#999';
+                        let yearText = '';
+                        if (school.yearLevels.length > 0) {
+                            const hasP6 = school.yearLevels.includes('P6');
+                            const numericLevels = school.yearLevels.filter(y => y !== 'P6' && !isNaN(y)).map(Number).sort((a, b) => a - b);
+                            const parts = [];
+                            if (hasP6) parts.push('Prep-Yr 6');
+                            if (numericLevels.length > 0) parts.push(`Yr ${numericLevels.join(', ')}`);
+                            yearText = parts.length > 0 ? `, ${parts.join(', ')}` : '';
+                        }
                         return `
                             <div style="margin-bottom: 4px;">
                                 <a href="/school-search?school_id=${school.school_id}" 
                                    style="color: var(--primary-color); text-decoration: none; font-weight: 500;"
                                    title="Click to view all addresses in ${school.school_name} catchment">
-                                    ${schoolDisplayName}${schoolSubtext}
+                                    ${school.school_name}
                                 </a>
                                 <span style="font-size: 0.75rem; color: ${color}; font-weight: 500; margin-left: 4px;">
-                                    (${school.school_type}${school.state && school.state !== 'NSW' ? ` - ${school.state}` : ''})
+                                    (${school.school_type}${yearText})
                                 </span>
                             </div>
                         `;
