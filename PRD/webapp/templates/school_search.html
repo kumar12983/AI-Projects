@@ -51,8 +51,8 @@
     <div class="container">
         <!-- Header with gradient -->
         <header class="header">
-            <h1>NSW School Catchment Search</h1>
-            <p>Find all addresses within a school catchment area</p>
+            <h1>School Catchment Search</h1>
+            <p>Find all addresses within a school catchment area (NSW & VIC)</p>
                 <nav class="nav">
                 <a href="/australia-school-search">← Back to Australia School Search</a>
             </nav>
@@ -100,6 +100,13 @@
 
                 <form id="schoolSearchForm" class="search-form">
                     <div class="form-row">
+                        <div class="form-group" style="flex: 1;">
+                            <label for="stateFilter">State</label>
+                            <select id="stateFilter">
+                                <option value="NSW" selected>NSW</option>
+                                <option value="VIC">Victoria</option>
+                            </select>
+                        </div>
                         <div class="form-group" style="flex: 3;">
                             <label for="schoolInput">School Name</label>
                             <div class="autocomplete-wrapper">
@@ -127,9 +134,20 @@
             <div class="school-info-card">
                 <div class="school-header">
                     <h2 id="schoolName">-</h2>
-                    <span id="schoolTypeBadge" class="badge">PRIMARY</span>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span id="schoolTypeBadge" class="badge">PRIMARY</span>
+                        <span id="stateBadge" class="badge" style="background: #10b981; display: none;"></span>
+                    </div>
                 </div>
                 <div class="school-details">
+                    <div class="detail-item" id="campus-container" style="display: none;">
+                        <span class="detail-label">Campus:</span>
+                        <span id="campusName">-</span>
+                    </div>
+                    <div class="detail-item" id="year-level-container" style="display: none;">
+                        <span class="detail-label">Year Level:</span>
+                        <span id="yearLevelCode">-</span>
+                    </div>
                     <div class="detail-item">
                         <span class="detail-label">Year Levels:</span>
                         <span id="yearLevels">-</span>

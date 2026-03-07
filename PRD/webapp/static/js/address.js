@@ -381,7 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 return `
-                                <tr data-row-index="${index}" data-lat="${addr.latitude || ''}" data-lng="${addr.longitude || ''}">
+                                <tr data-row-index="${index}" data-lat="${addr.latitude || ''}" data-lng="${addr.longitude || ''}" data-state="${addr.state || 'NSW'}">
                                     <td>${unit}</td>
                                     <td><strong>${streetNumber}</strong></td>
                                     <td>${streetName || 'N/A'}</td>
@@ -433,6 +433,7 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const row of rows) {
             const lat = row.dataset.lat;
             const lng = row.dataset.lng;
+            const state = row.dataset.state || 'NSW'; // Default to NSW for backward compatibility
             const schoolCell = row.querySelector('.school-catchment-cell');
 
             if (!lat || !lng) {
@@ -441,7 +442,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const response = await fetch(`/api/address/schools?lat=${lat}&lng=${lng}`);
+                const response = await fetch(`/api/address/schools?lat=${lat}&lng=${lng}&state=${state}`);
                 const data = await response.json();
 
                 if (response.status === 401 || response.status === 403) {
@@ -455,19 +456,39 @@ document.addEventListener('DOMContentLoaded', () => {
                         const typeColors = {
                             'PRIMARY': '#2196F3',
                             'SECONDARY': '#4CAF50',
-                            'FUTURE': '#FF9800'
+                            'FUTURE': '#FF9800',
+                            'JUNIOR_SECONDARY': '#9C27B0',
+                            'SENIOR_SECONDARY': '#FF5722',
+                            'SINGLE_SEX': '#E91E63'
                         };
                         const color = typeColors[school.school_type] || '#999';
+                        
+                        // Build school display name with VIC-specific fields
+                        let schoolDisplayName = school.school_name;
+                        let schoolSubtext = '';
+                        
+                        // Add campus name if available (VIC schools)
+                        if (school.campus_name && school.campus_name.trim()) {
+                            schoolSubtext += ` - ${school.campus_name}`;
+                        }
+                        
+                        // Add year level code if available (VIC schools)
+                        if (school.year_level_code && school.year_level_code.trim()) {
+                            let yearDisplay = school.year_level_code;
+                            if (yearDisplay === 'P6') yearDisplay = 'Prep-Yr 6';
+                            else if (!isNaN(yearDisplay)) yearDisplay = `Yr ${yearDisplay}`;
+                            schoolSubtext += ` (${yearDisplay})`;
+                        }
 
                         return `
                             <div style="margin-bottom: 4px;">
                                 <a href="/school-search?school_id=${school.school_id}" 
                                    style="color: var(--primary-color); text-decoration: none; font-weight: 500;"
                                    title="Click to view all addresses in ${school.school_name} catchment">
-                                    ${school.school_name}
+                                    ${schoolDisplayName}${schoolSubtext}
                                 </a>
                                 <span style="font-size: 0.75rem; color: ${color}; font-weight: 500; margin-left: 4px;">
-                                    (${school.school_type})
+                                    (${school.school_type}${school.state && school.state !== 'NSW' ? ` - ${school.state}` : ''})
                                 </span>
                             </div>
                         `;

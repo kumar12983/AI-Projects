@@ -559,44 +559,52 @@ def search_address():
 def get_schools_for_address():
     """
     Get schools that contain a given address (lat/lng) in their catchment
-    Example: /api/address/schools?lat=-33.8688&lng=151.2093
+    Example: /api/address/schools?lat=-33.8688&lng=151.2093&state=VIC
     """
     try:
         lat = float(request.args.get('lat', ''))
         lng = float(request.args.get('lng', ''))
     except (TypeError, ValueError):
         return jsonify({'error': 'Valid lat and lng parameters required'}), 400
-    
+
+    # Optional state filter (default to 'NSW' for backward compatibility)
+    state = str(request.args.get('state', 'NSW')).strip()
+
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Database connection failed'}), 500
-    
+
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
+
+        # Filter by state first for better performance
         query = """
             SELECT DISTINCT
                 school_id,
                 school_name,
-                school_type
+                campus_name,
+                school_type,
+                state,
+                year_level_code
             FROM gnaf.school_catchments
-            WHERE ST_Contains(
+            WHERE state = %s
+            AND ST_Contains(
                 geometry,
                 ST_SetSRID(ST_MakePoint(%s, %s), 4326)
             )
             ORDER BY school_type, school_name
         """
-        
-        cursor.execute(query, (lng, lat))
+
+        cursor.execute(query, (state, lng, lat))
         schools = cursor.fetchall()
         cursor.close()
         conn.close()
-        
+
         return jsonify({
             'count': len(schools),
             'schools': schools
         })
-        
+
     except Exception as e:
         if conn:
             conn.close()
@@ -606,17 +614,15 @@ def get_schools_for_address():
 @app.route('/api/stats', methods=['GET'])
 def get_statistics():
     """
-    Get database statistics
-    Example: /api/stats
+    Get general database statistics
     """
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Database connection failed'}), 500
-    
+
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # Get various statistics from materialized view
         stats = {}
         
         # Get pre-calculated statistics from materialized view
@@ -709,6 +715,7 @@ def autocomplete_schools():
     """
     query = str(request.args.get('q', '')).strip()
     school_type = str(request.args.get('type', '')).strip()  # PRIMARY, SECONDARY, FUTURE, or empty for all
+    state = str(request.args.get('state', 'NSW')).strip()  # State filter (default NSW)
     
     if not query or len(query) < 3:
         return jsonify([])
@@ -720,7 +727,7 @@ def autocomplete_schools():
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # Build type filter for WHERE clause
+        # Build type and state filters for WHERE clause
         type_filter = ""
         type_param = None
         if school_type and school_type.upper() != 'ALL':
@@ -733,12 +740,14 @@ def autocomplete_schools():
                 school_id,
                 school_name,
                 school_type,
+                state,
                 0 as rank_order
             FROM gnaf.school_catchments
-            WHERE UPPER(school_name) = UPPER(%s) {type_filter}
+            WHERE state = %s
+            AND UPPER(school_name) = UPPER(%s) {type_filter}
         """.format(type_filter=type_filter)
         
-        params = [query]
+        params = [state, query]
         if type_param:
             params.append(type_param)
         
@@ -752,14 +761,16 @@ def autocomplete_schools():
                     school_id,
                     school_name,
                     school_type,
+                    state,
                     1 as rank_order
                 FROM gnaf.school_catchments
-                WHERE UPPER(school_name) LIKE UPPER(%s) || '%%' {type_filter}
+                WHERE state = %s
+                AND UPPER(school_name) LIKE UPPER(%s) || '%%' {type_filter}
                 ORDER BY school_name
                 LIMIT 20
             """.format(type_filter=type_filter)
             
-            params = [query]
+            params = [state, query]
             if type_param:
                 params.append(type_param)
             
@@ -773,14 +784,16 @@ def autocomplete_schools():
                     school_id,
                     school_name,
                     school_type,
+                    state,
                     2 as rank_order
                 FROM gnaf.school_catchments
-                WHERE UPPER(school_name) LIKE '%%' || UPPER(%s) || '%%' {type_filter}
+                WHERE state = %s
+                AND UPPER(school_name) LIKE '%%' || UPPER(%s) || '%%' {type_filter}
                 ORDER BY school_name
                 LIMIT 20
             """.format(type_filter=type_filter)
             
-            params = [query]
+            params = [state, query]
             if type_param:
                 params.append(type_param)
             
@@ -793,7 +806,8 @@ def autocomplete_schools():
             output_results.append({
                 'school_id': row['school_id'],
                 'school_name': row['school_name'],
-                'school_type': row['school_type']
+                'school_type': row['school_type'],
+                'state': row['state']
             })
         
         cursor.close()

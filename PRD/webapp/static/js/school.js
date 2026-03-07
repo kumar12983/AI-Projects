@@ -19,6 +19,7 @@ let totalAddresses = 0;
 // DOM Elements
 const schoolInput = document.getElementById('schoolInput');
 const schoolSuggestions = document.getElementById('schoolSuggestions');
+const stateFilter = document.getElementById('stateFilter');
 const schoolSearchForm = document.getElementById('schoolSearchForm');
 const schoolInfoSection = document.getElementById('schoolInfoSection');
 const mapSection = document.getElementById('mapSection');
@@ -58,6 +59,17 @@ if (schoolIdParam) {
     setTimeout(() => {
         loadSchoolData(currentSchoolId);
     }, 100);
+}
+
+// State filter change handler - clear school input for better UX
+if (stateFilter) {
+    stateFilter.addEventListener('change', function() {
+        schoolInput.value = '';
+        currentSchoolId = null;
+        schoolSuggestions.style.display = 'none';
+        hideAllSections();
+        console.log('State changed to:', this.value, '- school input cleared');
+    });
 }
 
 // ============================================
@@ -246,15 +258,16 @@ schoolInput.addEventListener('input', function () {
         return;
     }
 
-    // Debounce API call
+// Debounce API call
     debounceTimer = setTimeout(() => {
-        fetchSchoolSuggestions(query);
+        const state = stateFilter ? stateFilter.value : 'NSW';
+        fetchSchoolSuggestions(query, state);
     }, 300);
 });
 
-async function fetchSchoolSuggestions(query) {
+async function fetchSchoolSuggestions(query, state = 'NSW') {
     try {
-        const url = `/api/autocomplete/schools?q=${encodeURIComponent(query)}`;
+        const url = `/api/autocomplete/schools?q=${encodeURIComponent(query)}&state=${state}`;
         const response = await fetch(url);
 
         if (!response.ok) {
@@ -278,11 +291,12 @@ function displaySchoolSuggestions(schools) {
     }
 
     schoolSuggestions.innerHTML = schools.map(school => `
-        <div class="autocomplete-item" data-school-id="${school.school_id}" data-school-name="${school.school_name}">
+        <div class="autocomplete-item" data-school-id="${school.school_id}" data-school-name="${school.school_name}" data-state="${school.state || 'NSW'}">
             <div class="school-suggestion">
                 <span class="school-name">${school.school_name}</span>
                 <span class="school-meta">
                     <span class="badge badge-${school.school_type.toLowerCase()}">${school.school_type}</span>
+                    ${school.state ? `<span class="badge" style="background: #10b981; margin-left: 4px;">${school.state}</span>` : ''}
                 </span>
             </div>
         </div>
@@ -531,6 +545,41 @@ function displaySchoolInfo(info) {
     document.getElementById('schoolName').textContent = info.school_name;
     document.getElementById('schoolTypeBadge').textContent = info.school_type;
     document.getElementById('schoolTypeBadge').className = `badge badge-${info.school_type.toLowerCase()}`;
+    
+    // Display state badge for VIC schools
+    const stateBadge = document.getElementById('stateBadge');
+    if (stateBadge && info.state && info.state === 'VIC') {
+        stateBadge.textContent = 'VIC';
+        stateBadge.style.display = 'inline-block';
+    } else if (stateBadge) {
+        stateBadge.style.display = 'none';
+    }
+    
+    // Display VIC-specific campus name
+    const campusContainer = document.getElementById('campus-container');
+    const campusName = document.getElementById('campusName');
+    if (campusContainer && campusName && info.campus_name && info.campus_name.trim()) {
+        campusName.textContent = info.campus_name;
+        campusContainer.style.display = 'flex';
+    } else if (campusContainer) {
+        campusContainer.style.display = 'none';
+    }
+    
+    // Display VIC-specific year level code
+    const yearLevelContainer = document.getElementById('year-level-container');
+    const yearLevelCode = document.getElementById('yearLevelCode');
+    if (yearLevelContainer && yearLevelCode && info.year_level_code && info.year_level_code.trim()) {
+        // Format year level code nicely
+        let yearLevelDisplay = info.year_level_code;
+        if (yearLevelDisplay === 'P6') yearLevelDisplay = 'Prep - Year 6';
+        else if (!isNaN(yearLevelDisplay)) yearLevelDisplay = `Year ${yearLevelDisplay}`;
+        
+        yearLevelCode.textContent = yearLevelDisplay;
+        yearLevelContainer.style.display = 'flex';
+    } else if (yearLevelContainer) {
+        yearLevelContainer.style.display = 'none';
+    }
+    
     document.getElementById('yearLevels').textContent = info.year_levels;
 
     // Display school type description
