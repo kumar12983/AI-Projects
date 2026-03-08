@@ -4,29 +4,29 @@ services:
   db:
     image: postgis/postgis:14-3.3
     environment:
-      POSTGRES_DB: gnaf_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${DB_NAME:-gnaf_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
     volumes:
       - db_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    restart: unless-stopped
+    # Not exposed to host in production; web container connects via internal network
+    expose:
+      - "5432"
 
   web:
     build:
-      context: ../..
-      dockerfile: deployment/docker/Dockerfile
+      context: ..
+      dockerfile: deployment/Dockerfile.txt
+    env_file:
+      - ../.env
     environment:
       DB_HOST: db
-      DB_NAME: gnaf_db
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_PORT: 5432
-      SECRET_KEY: dev-secret-key
     ports:
-      - "5000:5000"
+      - "80:5000"
     depends_on:
       - db
+    restart: unless-stopped
     entrypoint: ["/app/webapp/entrypoint.sh"]
 
 volumes:

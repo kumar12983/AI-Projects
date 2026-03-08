@@ -4,6 +4,7 @@ Authentication routes and decorators for freemium access control
 from functools import wraps
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, session
 from flask_login import login_user, logout_user, login_required, current_user
+from flask_mail import Message
 from models import User
 import psycopg2
 
@@ -224,3 +225,106 @@ def dashboard():
 def pricing():
     """Pricing page showing Free vs Premium tiers"""
     return render_template('pricing.html')
+
+
+# ---------------------------------------------------------------------------
+# Password reset flow
+# ---------------------------------------------------------------------------
+
+@auth_bp.route('/forgot-password', methods=['POST'])
+def forgot_password():
+    """Request a password-reset link via email."""
+    email = request.form.get('email', '').strip().lower()
+    if not email:
+        return jsonify({'error': 'Email address is required'}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database connection failed'}), 500
+
+    raw_token = User.set_reset_token(conn, email)
+    conn.close()
+
+    # Always return the same success message to prevent email enumeration
+    if raw_token:
+        reset_url = url_for('auth.reset_password', token=raw_token, _external=True)
+        try:
+            from app import mail
+            msg = Message(
+                subject='Reset Your Password – Property Research Database',
+                recipients=[email],
+                html=f'''
+<p>Hi,</p>
+<p>We received a request to reset the password for your account.</p>
+<p><a href="{reset_url}" style="background:#1e3a8a;color:#fff;padding:10px 20px;
+   border-radius:5px;text-decoration:none;font-weight:600;">Reset Password</a></p>
+<p>Or copy this link into your browser:<br>
+   <a href="{reset_url}">{reset_url}</a></p>
+<p>This link expires in <strong>1 hour</strong>. If you did not request this,
+   you can safely ignore this email — your password will not be changed.</p>
+<p>— Property Research Database</p>
+''',
+            )
+            mail.send(msg)
+        except Exception as exc:
+            # Log but don't expose internal errors to the client
+            print(f"[forgot_password] email send error: {exc}")
+
+    return jsonify({
+        'success': True,
+        'message': 'If that email is registered you will receive a reset link shortly. '
+                   'Please also check your spam folder.',
+    })
+
+
+@auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    """Render or process the reset-password form."""
+    if request.method == 'GET':
+        conn = get_db_connection()
+        if not conn:
+            return render_template(
+                'reset_password.html',
+                error='Database connection failed. Please try again later.',
+                token=None,
+            )
+        user = User.get_by_reset_token(conn, token)
+        conn.close()
+        if not user:
+            return render_template(
+                'reset_password.html',
+                error='This password-reset link is invalid or has expired. '
+                      'Please request a new one.',
+                token=None,
+            )
+        return render_template('reset_password.html', token=token, error=None)
+
+    # POST – apply the new password
+    password         = request.form.get('password', '')
+    confirm_password = request.form.get('confirm_password', '')
+
+    if not password or len(password) < 8:
+        return jsonify({'error': 'Password must be at least 8 characters'}), 400
+    if password != confirm_password:
+        return jsonify({'error': 'Passwords do not match'}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database connection failed'}), 500
+
+    user = User.get_by_reset_token(conn, token)
+    if not user:
+        conn.close()
+        return jsonify({
+            'error': 'This reset link is invalid or has expired. '
+                     'Please request a new one.'
+        }), 400
+
+    User.update_password(conn, user['user_id'], password)
+    conn.close()
+
+    return jsonify({
+        'success': True,
+        'message': 'Password reset successfully. You can now log in with your new password.',
+        'redirect': '/login',
+    })

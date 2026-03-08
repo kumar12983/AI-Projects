@@ -3,7 +3,8 @@ Database models for user authentication and subscription management
 """
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+import hashlib
+import secrets
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -145,6 +146,72 @@ class User(UserMixin):
         conn.commit()
         cursor.close()
     
+    @staticmethod
+    def set_reset_token(conn, email):
+        """Generate a secure password-reset token for the given email.
+
+        Stores only the SHA-256 hash of the token in the DB so that a
+        database leak cannot be used to take over accounts.  Returns the
+        raw (unhashed) token that must be e-mailed to the user, or None
+        when no active account with that email exists.
+        """
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            UPDATE webapp.users
+               SET reset_token = %s,
+                   reset_token_expires = NOW() + INTERVAL '1 hour'
+             WHERE email = %s AND is_active = TRUE
+            RETURNING user_id
+            """,
+            (token_hash, email),
+        )
+        result = cursor.fetchone()
+        conn.commit()
+        cursor.close()
+
+        return raw_token if result else None
+
+    @staticmethod
+    def get_by_reset_token(conn, raw_token):
+        """Return the user row for an unexpired reset token, or None."""
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute(
+            """
+            SELECT user_id, email, full_name
+              FROM webapp.users
+             WHERE reset_token = %s
+               AND reset_token_expires > NOW()
+               AND is_active = TRUE
+            """,
+            (token_hash,),
+        )
+        row = cursor.fetchone()
+        cursor.close()
+        return row
+
+    @staticmethod
+    def update_password(conn, user_id, new_password):
+        """Hash and store a new password, then invalidate the reset token."""
+        password_hash = generate_password_hash(new_password)
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            UPDATE webapp.users
+               SET password_hash = %s,
+                   reset_token = NULL,
+                   reset_token_expires = NULL
+             WHERE user_id = %s
+            """,
+            (password_hash, user_id),
+        )
+        conn.commit()
+        cursor.close()
+
     def is_premium(self):
         """Check if user has premium subscription"""
         return self.tier_name == 'Premium' and self.subscription_status == 'active'
