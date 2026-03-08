@@ -4,6 +4,7 @@ Provides API endpoints and web interface for searching suburbs and postcodes
 """
 from flask import Flask, render_template, request, jsonify
 from flask_login import LoginManager, login_required, current_user
+from flask_mail import Mail
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
@@ -14,6 +15,15 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Flask-Mail configuration (set these in your .env file)
+app.config['MAIL_SERVER']         = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT']           = int(os.getenv('MAIL_PORT', '587'))
+app.config['MAIL_USE_TLS']        = os.getenv('MAIL_USE_TLS', 'true').lower() == 'true'
+app.config['MAIL_USERNAME']       = os.getenv('MAIL_USERNAME', '')
+app.config['MAIL_PASSWORD']       = os.getenv('MAIL_PASSWORD', '')
+app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', os.getenv('MAIL_USERNAME', ''))
+mail = Mail(app)
 
 # Initialize Flask-Login
 login_manager = LoginManager()

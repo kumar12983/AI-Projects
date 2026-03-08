@@ -217,8 +217,8 @@
     <div class="auth-container">
         <div class="card">
             <div class="toggle-tabs">
-                <button class="toggle-btn active" onclick="switchTab('login')">Login</button>
-                <button class="toggle-btn" onclick="switchTab('register')">Sign Up</button>
+                <button class="toggle-btn active" data-tab="login"    onclick="switchTab('login')">Login</button>
+                <button class="toggle-btn"        data-tab="register" onclick="switchTab('register')">Sign Up</button>
             </div>
 
             <!-- LOGIN FORM -->
@@ -241,6 +241,31 @@
 
                     <button type="submit" class="btn">Log In</button>
                 </form>
+                <p style="text-align:center; margin-top:16px; font-size:14px;">
+                    <a href="#" onclick="switchTab('forgot'); return false;"
+                       style="color:#1e3a8a; text-decoration:none; font-weight:600;">Forgot your password?</a>
+                </p>
+            </div>
+
+            <!-- FORGOT PASSWORD FORM -->
+            <div id="forgot" class="form-section">
+                <h1>Reset Password</h1>
+                <p class="subtitle">Enter your email and we&rsquo;ll send you a reset link</p>
+
+                <div id="forgot-error"   class="error"   style="display:none;"></div>
+                <div id="forgot-success" class="success" style="display:none;"></div>
+
+                <form id="forgotForm">
+                    <div class="form-group">
+                        <label for="forgot-email">Email Address</label>
+                        <input type="email" id="forgot-email" name="email" required autocomplete="email">
+                    </div>
+                    <button type="submit" class="btn">Send Reset Link</button>
+                </form>
+                <p style="text-align:center; margin-top:16px; font-size:14px;">
+                    <a href="#" onclick="switchTab('login'); return false;"
+                       style="color:#1e3a8a; text-decoration:none; font-weight:600;">&larr; Back to Login</a>
+                </p>
             </div>
 
             <!-- REGISTER FORM -->
@@ -287,8 +312,10 @@
     <script>
         function switchTab(tab) {
             // Hide all sections
-            document.getElementById('login').classList.remove('active');
-            document.getElementById('register').classList.remove('active');
+            ['login', 'register', 'forgot'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.remove('active');
+            });
 
             // Remove active class from all buttons
             document.querySelectorAll('.toggle-btn').forEach(btn => {
@@ -298,13 +325,16 @@
             // Show selected section
             document.getElementById(tab).classList.add('active');
 
-            // Add active class to clicked button
-            event.target.classList.add('active');
+            // Mark matching tab button active (won't exist for 'forgot', that's fine)
+            const btn = document.querySelector(`.toggle-btn[data-tab="${tab}"]`);
+            if (btn) btn.classList.add('active');
 
-            // Clear error messages
-            document.getElementById('login-error').style.display = 'none';
-            document.getElementById('register-error').style.display = 'none';
-            document.getElementById('register-success').style.display = 'none';
+            // Clear all error/success messages
+            ['login-error','register-error','register-success',
+             'forgot-error','forgot-success'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
         }
 
         // Login form handler
@@ -330,6 +360,35 @@
                 }
             } catch (error) {
                 errorDiv.textContent = 'An error occurred. Please try again.';
+                errorDiv.style.display = 'block';
+            }
+        });
+
+        // Forgot-password form handler
+        document.getElementById('forgotForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData  = new FormData(e.target);
+            const errorDiv  = document.getElementById('forgot-error');
+            const successDiv = document.getElementById('forgot-success');
+            errorDiv.style.display   = 'none';
+            successDiv.style.display = 'none';
+
+            try {
+                const response = await fetch('/forgot-password', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.success) {
+                    successDiv.textContent   = data.message;
+                    successDiv.style.display = 'block';
+                    e.target.reset();
+                } else {
+                    errorDiv.textContent   = data.error || 'Something went wrong. Please try again.';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (err) {
+                errorDiv.textContent   = 'An error occurred. Please try again.';
                 errorDiv.style.display = 'block';
             }
         });
