@@ -5,6 +5,7 @@ Provides API endpoints and web interface for searching suburbs and postcodes
 from flask import Flask, render_template, request, jsonify
 from flask_login import LoginManager, login_required, current_user
 from flask_mail import Mail
+import re
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
@@ -332,6 +333,111 @@ def autocomplete_streets():
         
         return jsonify(results)
         
+    except Exception as e:
+        if conn:
+            conn.close()
+        return jsonify({'error': f'Database query failed: {str(e)}'}), 500
+
+
+@app.route('/api/autocomplete/full-address', methods=['GET'])
+def autocomplete_full_address():
+    """
+    Full-address autocomplete using gnaf.address_full_text materialised view.
+
+    Token rules:
+    - Pure number  (e.g. "68"):   number_first = 68  (exact, avoids "68" matching "5688")
+    - Number+suffix (e.g. "68A"): number_first = 68 AND number_first_suffix = 'A'
+    - Text >= 3 chars:             ILIKE uses GIN trigram index (the speed anchor)
+    - Short non-numeric (< 3):     skipped — no trigrams, seq-scan, noisy (RD, ST, AV)
+
+    Performance: the GIN trigram index handles text tokens and narrows the result;
+    number_first = X filters the small residual set with no extra overhead.
+    At least one text token >= 3 chars (or state) is required to avoid full seq-scan.
+    """
+    query = str(request.args.get('q', '')).strip()
+    state = str(request.args.get('state', '')).strip()
+
+    if not query or len(query) < 4:
+        return jsonify([])
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database connection failed'}), 500
+
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+        tokens = query.upper().split()
+        where_parts = []
+        exec_params = []
+        has_text_anchor = False
+
+        for token in tokens:
+            pure_num   = re.match(r'^\d+$', token)
+            num_suffix = re.match(r'^(\d+)([A-Z]+)$', token)
+
+            if pure_num:
+                # Exact column match — never matches "5688" when user typed "68"
+                where_parts.append("number_first = %s")
+                exec_params.append(int(token))
+            elif num_suffix:
+                # e.g. "68A" — match street number AND suffix column
+                where_parts.append(
+                    "(number_first = %s AND UPPER(COALESCE(number_first_suffix, '')) = %s)"
+                )
+                exec_params.extend([int(num_suffix.group(1)), num_suffix.group(2)])
+            elif len(token) >= 3:
+                # full_address is already uppercase in the MV, so no UPPER() wrapping needed.
+                # Using the column directly lets PostgreSQL use the GIN trigram index.
+                where_parts.append("full_address LIKE %s")
+                exec_params.append('%' + token + '%')
+                has_text_anchor = True
+            # else: skip short tokens (RD, ST, AV) — 2-char, no trigrams, add noise
+
+        if not where_parts:
+            return jsonify([])
+
+        state_filter = "AND state = %s" if state else ""
+        if state:
+            exec_params.append(state)
+            has_text_anchor = True  # state B-tree index serves as anchor
+
+        # Guard: without a text/state anchor the planner would seq-scan 16M rows
+        if not has_text_anchor:
+            return jsonify([])
+
+        search_query = f"""
+            SELECT
+                address_detail_pid,
+                full_address,
+                building_name,
+                number_first,
+                number_first_suffix,
+                number_last,
+                number_last_suffix,
+                flat_type,
+                flat_number,
+                street_name,
+                street_type,
+                suburb,
+                state,
+                postcode,
+                latitude,
+                longitude
+            FROM gnaf.address_full_text
+            WHERE {" AND ".join(where_parts)}
+            {state_filter}
+            ORDER BY full_address
+            LIMIT 15
+        """
+
+        cursor.execute(search_query, exec_params)
+        results = cursor.fetchall()
+        cursor.close()
+        conn.close()
+
+        return jsonify([dict(r) for r in results])
+
     except Exception as e:
         if conn:
             conn.close()

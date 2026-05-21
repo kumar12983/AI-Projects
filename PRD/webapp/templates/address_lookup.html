@@ -11,28 +11,36 @@
 </head>
 
 <body>
-    <div class="container container-wide">
-        <!-- Header with gradient -->
-        <header class="header">
-            <h1>Australian Address Lookup</h1>
-            <p>Search for addresses in the GNAF database</p>
-            <nav class="nav">
-                <a href="/">Home</a>
-                <a href="/search">Suburb Search</a>
-                <a href="/address-lookup" class="active">Address Lookup</a>
-                <a href="/australia-school-search">Australia School Search</a>
-            </nav>
-        </header>
+    {% include '_navbar.html' %}
 
-        <div class="hero-image">
-            <img src="https://images.unsplash.com/photo-1582407947304-fd86f028f716?w=1200&h=400&fit=crop&q=80"
-                alt="Street address and residential houses" loading="lazy">
+    <div class="page-banner">
+        <div class="page-banner-inner">
+            <p class="page-banner-eyebrow">Address Data</p>
+            <h1 class="page-banner-heading">Address Lookup</h1>
+            <p class="page-banner-sub">Search for addresses across Australia using the GNAF database</p>
+        </div>
+    </div>
+
+    <div class="page-body">
+    <div class="container container-wide">
         </div>
 
         <!-- Search Section -->
         <section class="search-section">
             <div class="search-card">
                 <h2>Search by Address</h2>
+
+                <!-- Quick full-address autocomplete -->
+                <div style="margin-bottom: 1.5rem;">
+                    <label for="full-address-input" style="display:block; font-weight:600; margin-bottom:0.4rem;">Quick Address Search</label>
+                    <div class="autocomplete-wrapper">
+                        <input type="text" id="full-address-input"
+                            placeholder="Start typing full address, e.g. 283 George Street Sydney NSW"
+                            autocomplete="off" style="width:100%;">
+                        <div id="full-address-suggestions" class="autocomplete-suggestions"></div>
+                    </div>
+                    <small style="color:#888;">Select a suggestion to auto-fill all fields below, or fill them manually.</small>
+                </div>
 
                 <div class="search-form">
                     <div class="form-row">
@@ -95,6 +103,7 @@
             <div id="address-results" class="results-card"></div>
         </section>
     </div>
+    </div><!-- /.page-body -->
 
     <!-- Property Viewer Modal -->
     <div id="property-modal" class="property-modal">

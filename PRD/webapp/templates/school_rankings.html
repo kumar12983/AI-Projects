@@ -6,52 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Top Performing Schools in NSW - School Rankings Guide</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Momo&display=swap">
+
     <style>
         .article-container {
             max-width: 900px;
             margin: 0 auto;
         }
         
-        .article-header {
-            text-align: center;
-            margin-bottom: var(--spacing-2xl);
-            padding: var(--spacing-2xl) var(--spacing-xl);
-            background: linear-gradient(135deg, rgba(30, 58, 138, 0.9) 0%, rgba(30, 58, 138, 0.75) 100%), url('https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1200&h=400&fit=crop') center/cover;
-            border-radius: var(--border-radius);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            border: 1px solid #e0e0e0;
-            position: relative;
-            color: white;
-        }
-        
-        .article-header h1,
-        .article-header .subtitle,
-        .article-header .nav a {
-            color: white;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-        
-        .article-header .nav a {
-            border-color: rgba(255, 255, 255, 0.5);
-            background: rgba(255, 255, 255, 0.1);
-        }
-        
-        .article-header .nav a:hover {
-            background: rgba(255, 255, 255, 0.2);
-            border-color: white;
-        }
-        
-        .article-header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #1e3a8a, #3b82f6);
-            border-radius: var(--border-radius) var(--border-radius) 0 0;
-        }
+
         
         .article-content {
             background: var(--white);
@@ -226,24 +188,31 @@
             margin-top: calc(-1 * var(--spacing-sm));
             margin-bottom: var(--spacing-lg);
         }
+
+        @media (max-width: 768px) {
+            .article-content { padding: var(--spacing-lg) var(--spacing-md); }
+            .article-container { padding: 0; }
+            .section-hero { height: 200px; }
+        }
+
+        @media (max-width: 480px) {
+            .article-content { padding: var(--spacing-md); }
+            .school-list li { transform: none !important; }
+        }
     </style>
 </head>
 
 <body>
-    <div class="container article-container">
-        <div class="article-header">
-            <nav class="nav" style="margin-bottom: var(--spacing-lg);">
-                <a href="/">Home</a>
-                <a href="/search">Suburb Search</a>
-                <a href="/address-lookup">Address Lookup</a>
-                <a href="/australia-school-search">Australia School Search</a>
-            </nav>
-            <h1>Top Performing Schools in NSW</h1>
-            <p class="subtitle">A Comprehensive Guide to NSW's Best Primary and Secondary Schools</p>
-            <p style="font-family: 'Momo', cursive; font-size: 1.1rem; margin-top: var(--spacing-lg); font-style: italic; opacity: 0.95; max-width: 700px; margin-left: auto; margin-right: auto;">
-                "Everything we hear is an opinion, not a fact. Everything we see is a perspective, not the truth." — Marcus Aurelius
-            </p>
+    {% include '_navbar.html' %}
+    <div class="page-banner">
+        <div class="page-banner-inner">
+            <p class="page-banner-eyebrow">Education Data</p>
+            <h1 class="page-banner-heading">Top Performing Schools in NSW</h1>
+            <p class="page-banner-sub">A comprehensive guide to NSW's best primary and secondary schools</p>
         </div>
+    </div>
+    <div class="page-body">
+    <div class="container article-container">
 
         <div class="article-content">
             <p>
@@ -833,6 +802,7 @@
             </div>
         </div>
     </div>
+    </div><!-- /.page-body -->
 </body>
 
 </html>

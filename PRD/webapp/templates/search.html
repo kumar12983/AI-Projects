@@ -9,16 +9,18 @@
 </head>
 
 <body>
-    <div class="container">
-        <header>
-            <h1>Suburb & Postcode Search</h1>
-            <a href="/" class="back-link" style="color: var(--primary-color); text-decoration: none; font-size: 0.95rem;">← Back to Home</a>
-        </header>
+    {% include '_navbar.html' %}
 
-        <div class="hero-image">
-            <img src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1200&h=400&fit=crop&q=80" alt="Suburban neighborhood aerial view" loading="lazy">
+    <div class="page-banner">
+        <div class="page-banner-inner">
+            <p class="page-banner-eyebrow">Locality Data</p>
+            <h1 class="page-banner-heading">Suburb &amp; Postcode Search</h1>
+            <p class="page-banner-sub">Find suburbs by postcode, or postcodes by suburb name</p>
         </div>
+    </div>
 
+    <div class="page-body">
+    <div class="container">
         <div class="search-container">
             <div class="search-tabs">
                 <button class="tab-button active" data-tab="postcode">Search by Postcode</button>
@@ -45,6 +47,7 @@
             </div>
         </div>
     </div>
+    </div><!-- /.page-body -->
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/search.js') }}"></script>
