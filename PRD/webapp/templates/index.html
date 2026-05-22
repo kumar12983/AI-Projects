@@ -4,178 +4,654 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Property Research Database</title>
+    <title>Property Research Database — Australian Property Intelligence</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* ── Reset body margin for full-bleed hero ── */
+        body { margin: 0; }
+
+        /* ─────────────────────────────────────────────────────
+           HERO
+        ───────────────────────────────────────────────────── */
+        .hero {
+            background: #0b1d3e;
+            position: relative;
+            overflow: hidden;
+            padding: 96px 0 80px;
+            min-height: 480px;
+            display: flex;
+            align-items: center;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 60% at 60% 50%, rgba(37,99,235,0.18) 0%, transparent 70%),
+                radial-gradient(ellipse 50% 80% at 90% 20%, rgba(14,165,233,0.10) 0%, transparent 60%);
+        }
+
+        /* subtle grid texture */
+        .hero::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 48px 48px;
+        }
+
+        .hero-inner {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 48px;
+        }
+
+        .hero-eyebrow {
+            font-size: 0.6875rem;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: #60a5fa;
+            margin: 0 0 18px;
+        }
+
+        .hero-heading {
+            font-size: clamp(2.25rem, 4.5vw, 3.75rem);
+            font-weight: 700;
+            color: #fff;
+            line-height: 1.08;
+            letter-spacing: -0.025em;
+            max-width: 680px;
+            margin: 0 0 22px;
+        }
+
+        .hero-heading em {
+            font-style: normal;
+            color: #60a5fa;
+        }
+
+        .hero-sub {
+            font-size: 1.0625rem;
+            color: #94a3b8;
+            max-width: 500px;
+            line-height: 1.65;
+            margin: 0 0 44px;
+        }
+
+        .hero-ctas {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .hero-cta-primary {
+            display: inline-flex;
+            align-items: center;
+            padding: 13px 26px;
+            background: #2563eb;
+            color: #fff;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            border-radius: 6px;
+            text-decoration: none;
+            transition: background 0.16s, transform 0.16s;
+            letter-spacing: -0.01em;
+        }
+        .hero-cta-primary:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+        }
+
+        .hero-cta-secondary {
+            display: inline-flex;
+            align-items: center;
+            padding: 13px 26px;
+            background: transparent;
+            color: #cbd5e1;
+            font-size: 0.9375rem;
+            font-weight: 500;
+            border-radius: 6px;
+            border: 1.5px solid rgba(255,255,255,0.2);
+            text-decoration: none;
+            transition: border-color 0.16s, color 0.16s;
+            letter-spacing: -0.01em;
+        }
+        .hero-cta-secondary:hover {
+            border-color: rgba(255,255,255,0.55);
+            color: #fff;
+        }
+
+        /* ─────────────────────────────────────────────────────
+           STATS BAND
+        ───────────────────────────────────────────────────── */
+        .stats-band {
+            background: #fff;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .stats-band-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 48px;
+            display: flex;
+        }
+
+        .stat-item {
+            flex: 1;
+            padding: 28px 20px;
+            border-right: 1px solid #e2e8f0;
+            min-width: 0;
+        }
+        .stat-item:last-child { border-right: none; }
+
+        .stat-item-num {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: -0.025em;
+            line-height: 1;
+            margin-bottom: 5px;
+        }
+
+        .stat-item-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+        }
+
+        /* ─────────────────────────────────────────────────────
+           PAGE SECTIONS WRAPPER
+        ───────────────────────────────────────────────────── */
+        .page-section {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 72px 48px;
+        }
+
+        .section-eyebrow {
+            font-size: 0.6875rem;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: #2563eb;
+            margin: 0 0 10px;
+        }
+
+        .section-heading {
+            font-size: clamp(1.375rem, 2vw, 1.875rem);
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+            margin: 0 0 14px;
+        }
+
+        .section-lead {
+            font-size: 0.9375rem;
+            color: #64748b;
+            line-height: 1.65;
+            max-width: 560px;
+            margin-bottom: 40px;
+        }
+
+        /* ─────────────────────────────────────────────────────
+           TOOL CARDS
+        ───────────────────────────────────────────────────── */
+        .tool-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .tool-card {
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 28px 24px 24px;
+            text-decoration: none;
+            transition: box-shadow 0.18s, border-color 0.18s, transform 0.18s;
+        }
+        .tool-card:hover {
+            box-shadow: 0 8px 32px rgba(15, 31, 64, 0.09);
+            border-color: #bfdbfe;
+            transform: translateY(-2px);
+        }
+
+        .tool-card-tag {
+            display: inline-block;
+            font-size: 0.625rem;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #2563eb;
+            background: #eff6ff;
+            padding: 3px 9px;
+            border-radius: 3px;
+            margin-bottom: 18px;
+            align-self: flex-start;
+        }
+
+        .tool-card h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: -0.01em;
+            margin: 0 0 9px;
+            line-height: 1.3;
+        }
+
+        .tool-card p {
+            font-size: 0.8125rem;
+            color: #64748b;
+            line-height: 1.6;
+            margin: 0 0 20px;
+            flex-grow: 1;
+        }
+
+        .tool-card-link {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: #2563eb;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: auto;
+            letter-spacing: -0.005em;
+        }
+        .tool-card-link .arrow {
+            display: inline-block;
+            transition: transform 0.16s;
+        }
+        .tool-card:hover .tool-card-link .arrow {
+            transform: translateX(4px);
+        }
+
+        /* ─────────────────────────────────────────────────────
+           COVERAGE SECTION
+        ───────────────────────────────────────────────────── */
+        .coverage-section {
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .coverage-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 72px 48px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+            align-items: center;
+        }
+
+        .coverage-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1px;
+            background: #e2e8f0;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .coverage-metric {
+            background: #fff;
+            padding: 28px 22px;
+        }
+
+        .coverage-metric-num {
+            font-size: 1.625rem;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: -0.025em;
+            line-height: 1;
+            margin-bottom: 5px;
+        }
+
+        .coverage-metric-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            line-height: 1.4;
+        }
+
+        /* ─────────────────────────────────────────────────────
+           STATE EXPLORER
+        ───────────────────────────────────────────────────── */
+        .state-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .state-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 18px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #0f172a;
+            transition: border-color 0.14s, box-shadow 0.14s, color 0.14s;
+            letter-spacing: -0.01em;
+        }
+        .state-btn:hover {
+            border-color: #2563eb;
+            color: #2563eb;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+        }
+
+        .state-btn-count {
+            font-size: 0.6875rem;
+            font-weight: 500;
+            color: #94a3b8;
+        }
+
+        /* ─────────────────────────────────────────────────────
+           DARK FOOTER
+        ───────────────────────────────────────────────────── */
+        .home-footer {
+            background: #0f172a;
+            padding: 40px 48px;
+        }
+
+        .home-footer-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .home-footer-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .home-footer-wordmark {
+            width: 30px;
+            height: 30px;
+            background: #2563eb;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 0.5625rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .home-footer-brand p {
+            color: #475569;
+            font-size: 0.8125rem;
+            margin: 0;
+        }
+
+        .home-footer-legal {
+            color: #334155;
+            font-size: 0.75rem;
+            margin: 0;
+        }
+
+        /* ─────────────────────────────────────────────────────
+           RESPONSIVE
+        ───────────────────────────────────────────────────── */
+        @media (max-width: 960px) {
+            .tool-cards { grid-template-columns: 1fr 1fr; }
+            .coverage-inner { grid-template-columns: 1fr; gap: 40px; }
+        }
+
+        @media (max-width: 720px) {
+            .tool-cards { grid-template-columns: 1fr; }
+            .stats-band-inner { flex-wrap: wrap; }
+            .stat-item { border-right: none; border-bottom: 1px solid #e2e8f0; width: 50%; flex: none; }
+            .stat-item:nth-child(even) { border-right: none; }
+            .coverage-metrics { grid-template-columns: 1fr 1fr; }
+        }
+
+        @media (max-width: 600px) {
+            .hero { padding: 72px 0 56px; }
+            .hero-inner,
+            .page-section,
+            .coverage-section .coverage-inner,
+            .home-footer-inner { padding-left: 24px; padding-right: 24px; }
+            .hero-ctas { flex-direction: column; align-items: stretch; }
+            .hero-cta-primary, .hero-cta-secondary { justify-content: center; }
+            .home-footer-inner { flex-direction: column; align-items: flex-start; }
+            .stat-item { width: 100%; border-right: none; }
+            .stat-item:last-child { border-bottom: none; }
+        }
+
+        @media (max-width: 480px) {
+            .hero-heading { font-size: clamp(1.75rem, 7vw, 2.5rem); }
+            .coverage-metrics { grid-template-columns: 1fr; }
+            .state-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+    </style>
 </head>
 
 <body>
-    <div class="container">
-        <header>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <div>
-                    <h1>Property Research Database</h1>
-                    <p class="subtitle">Search Australian suburbs, postcodes and addresses</p>
-                </div>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    {% if current_user.is_authenticated %}
-                    <div style="display: flex; align-items: center; gap: 15px;">
-                        <div style="text-align: right;">
-                            <div style="color: #1e3a8a; font-weight: 600; font-size: 14px;">{{ current_user.full_name }}</div>
-                            <div style="color: #999; font-size: 12px;">{{ current_user.tier_name }} Plan</div>
-                        </div>
-                        <a href="/dashboard" style="padding: 10px 16px; background: #1e3a8a; color: white; text-decoration: none; border-radius: 5px; font-weight: 600; transition: all 0.2s; font-size: 14px;" onmouseover="this.style.background='#1e40af'; this.style.boxShadow='0 2px 8px rgba(30,58,138,0.3)'"
-                            onmouseout="this.style.background='#1e3a8a'; this.style.boxShadow='none'">Dashboard</a>
-                        <a href="/logout" style="padding: 10px 16px; background: #dc2626; color: white; text-decoration: none; border-radius: 5px; font-weight: 600; transition: all 0.2s; font-size: 14px;" onmouseover="this.style.background='#b91c1c'; this.style.boxShadow='0 2px 8px rgba(220,38,38,0.3)'"
-                            onmouseout="this.style.background='#dc2626'; this.style.boxShadow='none'">Logout</a>
-                    </div>
-                    {% else %}
-                    <a href="/login" style="padding: 10px 20px; background: #1e3a8a; color: white; text-decoration: none; border-radius: 5px; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background='#1e40af'; this.style.boxShadow='0 2px 8px rgba(30,58,138,0.3)'"
-                        onmouseout="this.style.background='#1e3a8a'; this.style.boxShadow='none'">Login / Sign Up</a>
-                    <a href="/pricing" style="padding: 10px 20px; background: #1e3a8a; color: white; text-decoration: none; border-radius: 5px; font-weight: 600; transition: all 0.2s;" onmouseover="this.style.background='#1e40af'; this.style.boxShadow='0 2px 8px rgba(30,58,138,0.3)'"
-                        onmouseout="this.style.background='#1e3a8a'; this.style.boxShadow='none'">Pricing</a> {% endif %}
-                </div>
+    {% include '_navbar.html' %}
+
+    <!-- ── Hero ── -->
+    <section class="hero">
+        <div class="hero-inner">
+            <p class="hero-eyebrow">Australian Property Intelligence</p>
+            <h1 class="hero-heading">Data that reveals<br><em>every address.</em></h1>
+            <p class="hero-sub">Search 14 million Australian properties, suburbs, postcodes, and school catchment zones — powered by the national GNAF database.</p>
+            <div class="hero-ctas">
+                <a href="/search" class="hero-cta-primary">Search Suburbs &amp; Postcodes</a>
+                <a href="/address-lookup" class="hero-cta-secondary">Lookup an Address</a>
             </div>
-        </header>
-
-        <div class="hero-image">
-            <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&h=400&fit=crop&q=80" alt="Australian modern architecture" loading="lazy">
         </div>
+    </section>
 
-        <nav class="nav-cards">
-            <a href="/search" class="nav-card">
-                <h3>Suburb & Postcode Search</h3>
-                <p>Find suburbs by postcode or postcodes by suburb name</p>
-            </a>
-
-            <a href="/address-lookup" class="nav-card">
-                <h3>Address Lookup</h3>
-                <p>Search for specific addresses and locations</p>
-            </a>
-
-            <a href="/australia-school-search" class="nav-card">
-                <h3>Australia School Search</h3>
-                <p>Search schools across Australia and view 5km catchment zones</p>
-            </a>
-        </nav>
-
-        <div class="stats-section" id="stats">
-            <h2>Database Statistics</h2>
-            <div class="stats-grid" id="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-number">Loading...</div>
-                    <div class="stat-label">Total Localities</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">-</div>
-                    <div class="stat-label">Total Addresses</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-number">-</div>
-                    <div class="stat-label">Total Streets</div>
-                </div>
+    <!-- ── Live stats band ── -->
+    <div class="stats-band">
+        <div class="stats-band-inner" id="stats-band">
+            <div class="stat-item">
+                <div class="stat-item-num" id="sb-addresses">—</div>
+                <div class="stat-item-label">Total Addresses</div>
             </div>
-            <div id="state-stats"></div>
+            <div class="stat-item">
+                <div class="stat-item-num" id="sb-localities">—</div>
+                <div class="stat-item-label">Localities</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-item-num" id="sb-streets">—</div>
+                <div class="stat-item-label">Named Streets</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-item-num">8</div>
+                <div class="stat-item-label">States &amp; Territories</div>
+            </div>
         </div>
-
-        <footer>
-            <p>Powered by GNAF (Geocoded National Address File) Database</p>
-            <p><small>Data from Australian Government</small></p>
-        </footer>
     </div>
+
+    <!-- ── Research tools ── -->
+    <div class="page-section">
+        <p class="section-eyebrow">Research Tools</p>
+        <h2 class="section-heading">What would you like to look up?</h2>
+        <p class="section-lead">Access the complete national address file. Search by suburb, postcode, street address, or school zone — all from a single platform.</p>
+
+        <div class="tool-cards">
+            <a href="/search" class="tool-card">
+                <span class="tool-card-tag">Locality</span>
+                <h3>Suburb &amp; Postcode Search</h3>
+                <p>Find all suburbs within a postcode, or look up the postcode for any suburb across every Australian state and territory.</p>
+                <span class="tool-card-link">Search suburbs <span class="arrow">→</span></span>
+            </a>
+
+            <a href="/address-lookup" class="tool-card">
+                <span class="tool-card-tag">Address</span>
+                <h3>Address Lookup</h3>
+                <p>Resolve a full Australian street address with autocomplete, coordinates, locality details, and state classification.</p>
+                <span class="tool-card-link">Lookup address <span class="arrow">→</span></span>
+            </a>
+
+            <a href="/australia-school-search" class="tool-card">
+                <span class="tool-card-tag">Education</span>
+                <h3>School Catchment Search</h3>
+                <p>Search schools by name or location and visualise the 5 km catchment zone on an interactive map.</p>
+                <span class="tool-card-link">Search schools <span class="arrow">→</span></span>
+            </a>
+        </div>
+    </div>
+
+    <!-- ── Coverage section ── -->
+    <section class="coverage-section">
+        <div class="coverage-inner">
+            <div>
+                <p class="section-eyebrow">Data Coverage</p>
+                <h2 class="section-heading">Comprehensive national address intelligence</h2>
+                <p class="section-lead" style="margin-bottom:0;">Built on the Geocoded National Address File (GNAF) — the authoritative, government-maintained source for every address in Australia. Updated regularly and covering all states and territories.</p>
+            </div>
+            <div class="coverage-metrics">
+                <div class="coverage-metric">
+                    <div class="coverage-metric-num" id="cv-addresses">—</div>
+                    <div class="coverage-metric-label">Total addresses</div>
+                </div>
+                <div class="coverage-metric">
+                    <div class="coverage-metric-num" id="cv-localities">—</div>
+                    <div class="coverage-metric-label">Localities nationwide</div>
+                </div>
+                <div class="coverage-metric">
+                    <div class="coverage-metric-num" id="cv-streets">—</div>
+                    <div class="coverage-metric-label">Named streets</div>
+                </div>
+                <div class="coverage-metric">
+                    <div class="coverage-metric-num">98%</div>
+                    <div class="coverage-metric-label">National address coverage</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── State explorer ── -->
+    <div class="page-section">
+        <p class="section-eyebrow">Browse by State</p>
+        <h2 class="section-heading">Explore localities by state or territory</h2>
+        <p class="section-lead">Click any state to browse all suburbs and postcodes. Select a suburb to jump directly to address lookup.</p>
+        <div class="state-grid" id="state-grid">
+            <div class="state-btn" style="color:#94a3b8;cursor:default;border-style:dashed;">Loading&hellip;</div>
+        </div>
+    </div>
+
+    <!-- ── Footer ── -->
+    <footer class="home-footer">
+        <div class="home-footer-inner">
+            <div class="home-footer-brand">
+                <div class="home-footer-wordmark">PRD</div>
+                <p>Powered by <strong style="color:#94a3b8;">GNAF</strong> &mdash; Geocoded National Address File</p>
+            </div>
+            <p class="home-footer-legal">Data sourced from the Australian Government &mdash; &copy; Property Research Database</p>
+        </div>
+    </footer>
+
+    <!-- ── Modal (appended by JS) ── -->
 
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script>
-        // Load statistics on page load
-        window.addEventListener('DOMContentLoaded', async() => {
-                    try {
-                        const response = await fetch('/api/stats');
-                        const stats = await response.json();
+        /* ── number formatter ── */
+        function fmt(n) {
+            if (!n && n !== 0) return '—';
+            if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+            if (n >= 1_000) return (n / 1_000).toFixed(0) + 'k';
+            return n.toLocaleString();
+        }
+        function setTxt(id, val) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+        }
 
-                        const statsGrid = document.getElementById('stats-grid');
-                        statsGrid.innerHTML = `
-                    <div class="stat-card">
-                        <div class="stat-number">${stats.total_localities?.toLocaleString() || 'N/A'}</div>
-                        <div class="stat-label">Total Localities</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number">${stats.total_addresses?.toLocaleString() || 'N/A'}</div>
-                        <div class="stat-label">Total Addresses</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number">${stats.total_streets?.toLocaleString() || 'N/A'}</div>
-                        <div class="stat-label">Total Streets</div>
-                    </div>
-                `;
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch('/api/stats');
+                const stats = await response.json();
 
-                        // Display state statistics
-                        if (stats.localities_by_state) {
-                            const stateStats = document.getElementById('state-stats');
-                            stateStats.innerHTML = `
-                        <h3>Localities by State</h3>
-                        <div class="state-list">
-                            ${stats.localities_by_state.map(s => `
-                                <button class="state-item" data-state="${s.state_abbreviation}" onclick="loadStateSuburbs('${s.state_abbreviation}')">
-                                    <span class="state-name">${s.state_abbreviation}</span>
-                                    <span class="state-count">${s.count.toLocaleString()}</span>
-                                </button>
-                            `).join('')}
-                        </div>
-                    `;
+                // Stats band
+                setTxt('sb-addresses', fmt(stats.total_addresses));
+                setTxt('sb-localities', fmt(stats.total_localities));
+                setTxt('sb-streets',   fmt(stats.total_streets));
+
+                // Coverage metrics
+                setTxt('cv-addresses', fmt(stats.total_addresses));
+                setTxt('cv-localities', fmt(stats.total_localities));
+                setTxt('cv-streets',   fmt(stats.total_streets));
+
+                // State grid
+                if (stats.localities_by_state) {
+                    const grid = document.getElementById('state-grid');
+                    grid.innerHTML = stats.localities_by_state.map(s => `
+                        <button class="state-btn" onclick="openStateModal('${s.state_abbreviation}')">
+                            ${s.state_abbreviation}
+                            <span class="state-btn-count">${s.count.toLocaleString()}</span>
+                        </button>
+                    `).join('');
                 }
 
-                // Modal for displaying state suburbs
+                // Create modal once
                 const modal = document.createElement('div');
                 modal.id = 'state-modal';
                 modal.className = 'modal';
                 modal.innerHTML = `
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h2 id="modal-title">Loading...</h2>
+                            <h2 id="modal-title">Loading&hellip;</h2>
                             <button class="modal-close" onclick="closeModal()">&times;</button>
                         </div>
                         <div id="modal-body" class="modal-body"></div>
                     </div>
                 `;
                 document.body.appendChild(modal);
-            } catch (error) {
-                console.error('Error loading statistics:', error);
-                document.getElementById('stats-grid').innerHTML = `
-                    <div class="stat-card error">
-                        <div class="stat-label">Error loading statistics</div>
-                    </div>
-                `;
+
+            } catch (err) {
+                console.error('Stats load error:', err);
             }
         });
 
-        async function loadStateSuburbs(state) {
+        async function openStateModal(state) {
             const modal = document.getElementById('state-modal');
             const modalTitle = document.getElementById('modal-title');
-            const modalBody = document.getElementById('modal-body');
-            
+            const modalBody  = document.getElementById('modal-body');
+
             modal.classList.add('active');
-            modalTitle.textContent = `${state} - Loading...`;
-            modalBody.innerHTML = '<div class="loading">Loading suburbs...</div>';
-            
+            modalTitle.textContent = `${state} — Loading…`;
+            modalBody.innerHTML = '<div class="loading">Loading suburbs…</div>';
+
             try {
                 const response = await fetch(`/api/suburbs/by-state?state=${encodeURIComponent(state)}`);
                 const data = await response.json();
-                
+
                 modalTitle.textContent = `${state} (${data.count.toLocaleString()} Suburbs)`;
-                
+
                 if (data.suburbs && data.suburbs.length > 0) {
                     modalBody.innerHTML = `
                         <div class="modal-search">
-                            <input type="text" id="suburb-filter" placeholder="Search suburbs..." class="search-input">
+                            <input type="text" id="suburb-filter" placeholder="Filter suburbs…" class="search-input">
                             <span id="filter-count">${data.count.toLocaleString()} results</span>
                         </div>
                         <div class="suburbs-table">
                             <table id="suburbs-table">
-                                <thead>
-                                    <tr>
-                                        <th>Suburb</th>
-                                        <th>Postcode</th>
-                                    </tr>
-                                </thead>
+                                <thead><tr><th>Suburb</th><th>Postcode</th></tr></thead>
                                 <tbody>
                                     ${data.suburbs.map(s => `
                                         <tr class="clickable-row" data-suburb="${s.suburb}" data-postcode="${s.postcode}">
@@ -187,50 +663,36 @@
                             </table>
                         </div>
                     `;
-                    
-                    // Add search functionality
+
                     const searchInput = document.getElementById('suburb-filter');
-                    const table = document.getElementById('suburbs-table');
                     const filterCount = document.getElementById('filter-count');
-                    const tbody = table.querySelector('tbody');
-                    const rows = Array.from(tbody.querySelectorAll('tr'));
-                    
-                    searchInput.addEventListener('input', (e) => {
-                        const searchTerm = e.target.value.toLowerCase().trim();
-                        let visibleCount = 0;
-                        
+                    const rows = Array.from(document.querySelectorAll('#suburbs-table tbody tr'));
+
+                    searchInput.addEventListener('input', e => {
+                        const term = e.target.value.toLowerCase().trim();
+                        let count = 0;
                         rows.forEach(row => {
-                            const suburb = row.cells[0].textContent.toLowerCase();
-                            const postcode = row.cells[1].textContent.toLowerCase();
-                            
-                            if (suburb.includes(searchTerm) || postcode.includes(searchTerm)) {
-                                row.style.display = '';
-                                visibleCount++;
-                            } else {
-                                row.style.display = 'none';
-                            }
+                            const match =
+                                row.cells[0].textContent.toLowerCase().includes(term) ||
+                                row.cells[1].textContent.toLowerCase().includes(term);
+                            row.style.display = match ? '' : 'none';
+                            if (match) count++;
                         });
-                        
-                        filterCount.textContent = `${visibleCount.toLocaleString()} result${visibleCount !== 1 ? 's' : ''}`;
+                        filterCount.textContent = `${count.toLocaleString()} result${count !== 1 ? 's' : ''}`;
                     });
-                    
-                    // Add click handlers for rows
+
                     rows.forEach(row => {
                         row.addEventListener('click', () => {
-                            const suburb = row.dataset.suburb;
-                            const postcode = row.dataset.postcode;
-                            // Navigate to address lookup with pre-filled search
-                            window.location.href = `/address-lookup?suburb=${encodeURIComponent(suburb)}&postcode=${encodeURIComponent(postcode)}&auto=true`;
+                            window.location.href = `/address-lookup?suburb=${encodeURIComponent(row.dataset.suburb)}&postcode=${encodeURIComponent(row.dataset.postcode)}&auto=true`;
                         });
                     });
-                    
-                    // Focus search input
+
                     setTimeout(() => searchInput.focus(), 100);
                 } else {
                     modalBody.innerHTML = '<p>No suburbs found for this state.</p>';
                 }
-            } catch (error) {
-                console.error('Error loading state suburbs:', error);
+            } catch (err) {
+                console.error(err);
                 modalBody.innerHTML = '<p class="error">Error loading suburbs. Please try again.</p>';
             }
         }
@@ -239,12 +701,9 @@
             document.getElementById('state-modal').classList.remove('active');
         }
 
-        // Close modal when clicking outside
-        window.addEventListener('click', (e) => {
+        window.addEventListener('click', e => {
             const modal = document.getElementById('state-modal');
-            if (e.target === modal) {
-                closeModal();
-            }
+            if (modal && e.target === modal) closeModal();
         });
     </script>
 </body>

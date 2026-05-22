@@ -475,12 +475,79 @@ if (searchPostcode && searchPostcodeSuggestions) {
     });
 }
 
+// ============================================
+// Full-Address Single-Field Autocomplete (School Address Search)
+// ============================================
+const schoolFullAddressInput       = document.getElementById('school-full-address-input');
+const schoolFullAddressSuggestions = document.getElementById('school-full-address-suggestions');
+
+if (schoolFullAddressInput && schoolFullAddressSuggestions) {
+    let schoolFullAddressDebounce;
+
+    schoolFullAddressInput.addEventListener('input', (e) => {
+        clearTimeout(schoolFullAddressDebounce);
+        const query = e.target.value.trim();
+
+        if (query.length < 4) {
+            schoolFullAddressSuggestions.innerHTML = '';
+            schoolFullAddressSuggestions.style.display = 'none';
+            return;
+        }
+
+        schoolFullAddressDebounce = setTimeout(async () => {
+            try {
+                const url = `/api/autocomplete/full-address?q=${encodeURIComponent(query)}`;
+                const response = await fetch(url);
+                const addresses = await response.json();
+
+                if (addresses.length > 0) {
+                    schoolFullAddressSuggestions.innerHTML = addresses.map(addr =>
+                        `<div class="suggestion-item"
+                             data-number="${addr.number_first || ''}"
+                             data-suffix="${addr.number_first_suffix || ''}"
+                             data-street="${addr.street_name || ''}"
+                             data-suburb="${addr.suburb || ''}"
+                             data-state="${addr.state || ''}"
+                             data-postcode="${addr.postcode || ''}">
+                            ${addr.full_address}
+                        </div>`
+                    ).join('');
+                    schoolFullAddressSuggestions.style.display = 'block';
+
+                    schoolFullAddressSuggestions.querySelectorAll('.suggestion-item').forEach(item => {
+                        item.addEventListener('click', () => {
+                            schoolFullAddressInput.value = item.textContent.trim();
+                            schoolFullAddressSuggestions.style.display = 'none';
+
+                            // Back-fill individual fields
+                            if (searchStreetNumber) searchStreetNumber.value = item.dataset.number + (item.dataset.suffix || '');
+                            if (searchStreet)       searchStreet.value       = item.dataset.street;
+                            if (searchSuburb)       searchSuburb.value       = item.dataset.suburb;
+                            if (searchPostcode)     searchPostcode.value     = item.dataset.postcode;
+                            if (searchState)        searchState.value        = item.dataset.state;
+
+                            // Auto-trigger address search
+                            if (searchAddressBtn) searchAddressBtn.click();
+                        });
+                    });
+                } else {
+                    schoolFullAddressSuggestions.innerHTML = '<div class="suggestion-item" style="color:#999;">No addresses found</div>';
+                    schoolFullAddressSuggestions.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error fetching full-address suggestions:', error);
+            }
+        }, 300);
+    });
+}
+
 // Hide autocomplete dropdowns when clicking outside
 document.addEventListener('click', (e) => {
     if (!e.target.closest('.autocomplete-wrapper')) {
         if (searchStreetSuggestions) searchStreetSuggestions.style.display = 'none';
         if (searchSuburbSuggestions) searchSuburbSuggestions.style.display = 'none';
         if (searchPostcodeSuggestions) searchPostcodeSuggestions.style.display = 'none';
+        if (schoolFullAddressSuggestions) schoolFullAddressSuggestions.style.display = 'none';
     }
 });
 

@@ -1,204 +1,68 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Checkout - Upgrade to Premium</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://js.stripe.com/v3/"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        
-        .checkout-container {
-            background: white;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 500px;
-            width: 100%;
-        }
-        
-        h1 {
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 28px;
-        }
-        
-        .subtitle {
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 14px;
-        }
-        
-        .plan-summary {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-        }
-        
-        .plan-summary h2 {
-            font-size: 20px;
-            color: #333;
-            margin-bottom: 15px;
-        }
-        
-        .price {
-            font-size: 36px;
-            font-weight: bold;
-            color: #667eea;
-            margin-bottom: 5px;
-        }
-        
-        .price span {
-            font-size: 18px;
-            color: #999;
-        }
-        
-        .features {
-            list-style: none;
-            margin-top: 15px;
-        }
-        
-        .features li {
-            padding: 8px 0;
-            color: #555;
-            font-size: 14px;
-        }
-        
-        .check {
-            color: #4caf50;
-            margin-right: 10px;
-            font-weight: bold;
-        }
-        
-        .btn {
-            width: 100%;
-            padding: 16px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        
-        .btn:hover {
-            transform: translateY(-2px);
-        }
-        
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        .secure {
-            text-align: center;
-            margin-top: 20px;
-            font-size: 13px;
-            color: #999;
-        }
-        
-        .secure::before {
-            content: "🔒 ";
-        }
-        
-        .error {
-            background: #fee;
-            border: 1px solid #fcc;
-            color: #c33;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            display: none;
-        }
-    </style>
 </head>
-
 <body>
-    <div class="checkout-container">
-        <h1>Upgrade to Premium</h1>
-        <p class="subtitle">Unlock unlimited searches and advanced features</p>
-
-        <div id="error-message" class="error"></div>
-
-        <div class="plan-summary">
-            <h2>Premium Plan</h2>
-            <div class="price">$9.99<span>/month</span></div>
-
-            <ul class="features">
-                <li><span class="check">✓</span>Unlimited searches</li>
-                <li><span class="check">✓</span>Export data to CSV/Excel</li>
-                <li><span class="check">✓</span>Advanced analytics</li>
-                <li><span class="check">✓</span>School catchment data</li>
-                <li><span class="check">✓</span>No advertisements</li>
-            </ul>
+    {% include '_navbar.html' %}
+    <div class="auth-split">
+        <div class="auth-split-left">
+            <div class="auth-split-left-content">
+                <a href="/" class="auth-split-wordmark">
+                    <div class="auth-split-wordmark-badge">PRD</div>
+                    <span class="auth-split-wordmark-name">Property Research Database</span>
+                </a>
+                <h2 class="auth-split-heading">Unlock the full power of Australian property data.</h2>
+                <p class="auth-split-sub">Upgrade to Premium for unlimited searches, CSV exports, and advanced analytics.</p>
+                <ul class="auth-split-features">
+                    <li><span class="auth-feature-dot"></span>Unlimited searches</li>
+                    <li><span class="auth-feature-dot"></span>Export data to CSV/Excel</li>
+                    <li><span class="auth-feature-dot"></span>Advanced analytics</li>
+                    <li><span class="auth-feature-dot"></span>School catchment data</li>
+                    <li><span class="auth-feature-dot"></span>No advertisements</li>
+                </ul>
+            </div>
         </div>
+        <div class="auth-split-right">
+            <div class="auth-form-card">
+                <h1 class="auth-form-title">Upgrade to Premium</h1>
+                <p class="auth-form-sub">Unlock unlimited searches and advanced features</p>
 
-        <button id="checkout-button" class="btn">Subscribe Now</button>
+                <div id="error-message" class="auth-alert auth-alert-error" style="display:none;"></div>
 
-        <p class="secure">Secure payment powered by Stripe</p>
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:24px; margin:24px 0;">
+                    <div style="font-size:0.8125rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px;">Premium Plan</div>
+                    <div style="font-size:2rem; font-weight:700; color:#0f172a; line-height:1;">$9.99<span style="font-size:1rem; font-weight:400; color:#64748b;">/month</span></div>
+                </div>
+
+                <button id="checkout-button" class="auth-submit-btn">Subscribe Now</button>
+                <p style="text-align:center; font-size:0.8125rem; color:#94a3b8; margin-top:12px;">Secure payment powered by Stripe</p>
+            </div>
+        </div>
     </div>
-
     <script>
         const stripe = Stripe('{{ stripe_publishable_key }}');
         const checkoutButton = document.getElementById('checkout-button');
         const errorDiv = document.getElementById('error-message');
 
-        checkoutButton.addEventListener('click', async() => {
-            checkoutButton.disabled = true;
-            checkoutButton.textContent = 'Processing...';
+        checkoutButton.addEventListener('click', async () => {
+            checkoutButton.disabled = true; checkoutButton.textContent = 'Processing\u2026';
             errorDiv.style.display = 'none';
-
             try {
-                const response = await fetch('/api/create-checkout-session', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                });
-
+                const response = await fetch('/api/create-checkout-session', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
                 const data = await response.json();
-
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-
-                // Redirect to Stripe Checkout
-                const result = await stripe.redirectToCheckout({
-                    sessionId: data.sessionId
-                });
-
-                if (result.error) {
-                    throw new Error(result.error.message);
-                }
-
+                if (data.error) throw new Error(data.error);
+                const result = await stripe.redirectToCheckout({ sessionId: data.sessionId });
+                if (result.error) throw new Error(result.error.message);
             } catch (error) {
-                errorDiv.textContent = error.message;
-                errorDiv.style.display = 'block';
-                checkoutButton.disabled = false;
-                checkoutButton.textContent = 'Subscribe Now';
+                errorDiv.textContent = error.message; errorDiv.style.display = 'block';
+                checkoutButton.disabled = false; checkoutButton.textContent = 'Subscribe Now';
             }
         });
     </script>
 </body>
-
 </html>

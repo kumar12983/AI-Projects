@@ -518,4 +518,78 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.key === 'Enter') searchAddress();
         });
     });
+
+    // ============================================
+    // Full-Address Single-Field Autocomplete
+    // ============================================
+    const fullAddressInput       = document.getElementById('full-address-input');
+    const fullAddressSuggestions = document.getElementById('full-address-suggestions');
+
+    if (fullAddressInput && fullAddressSuggestions) {
+        let fullAddressDebounce;
+
+        fullAddressInput.addEventListener('input', (e) => {
+            clearTimeout(fullAddressDebounce);
+            const query = e.target.value.trim();
+
+            if (query.length < 4) {
+                fullAddressSuggestions.innerHTML = '';
+                fullAddressSuggestions.style.display = 'none';
+                return;
+            }
+
+            fullAddressDebounce = setTimeout(async () => {
+                try {
+                    const url = `/api/autocomplete/full-address?q=${encodeURIComponent(query)}`;
+                    const response = await fetch(url);
+                    const addresses = await response.json();
+
+                    if (addresses.length > 0) {
+                        fullAddressSuggestions.innerHTML = addresses.map(addr =>
+                            `<div class="suggestion-item"
+                                 data-pid="${addr.address_detail_pid}"
+                                 data-number="${addr.number_first || ''}"
+                                 data-suffix="${addr.number_first_suffix || ''}"
+                                 data-street="${addr.street_name || ''}"
+                                 data-suburb="${addr.suburb || ''}"
+                                 data-state="${addr.state || ''}"
+                                 data-postcode="${addr.postcode || ''}">
+                                ${addr.full_address}
+                            </div>`
+                        ).join('');
+                        fullAddressSuggestions.style.display = 'block';
+
+                        fullAddressSuggestions.querySelectorAll('.suggestion-item').forEach(item => {
+                            item.addEventListener('click', () => {
+                                fullAddressInput.value = item.textContent.trim();
+                                fullAddressSuggestions.style.display = 'none';
+
+                                // Back-fill individual fields
+                                streetNumberInput.value = item.dataset.number + (item.dataset.suffix || '');
+                                streetInput.value       = item.dataset.street;
+                                suburbInput.value       = item.dataset.suburb;
+                                postcodeInput.value     = item.dataset.postcode;
+                                stateInput.value        = item.dataset.state;
+
+                                // Auto-trigger the existing search
+                                searchBtn.click();
+                            });
+                        });
+                    } else {
+                        fullAddressSuggestions.innerHTML = '<div class="suggestion-item" style="color:#999;">No addresses found</div>';
+                        fullAddressSuggestions.style.display = 'block';
+                    }
+                } catch (error) {
+                    console.error('Error fetching full-address suggestions:', error);
+                }
+            }, 300);
+        });
+
+        // Hide on outside click (extends existing handler)
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.autocomplete-wrapper')) {
+                fullAddressSuggestions.style.display = 'none';
+            }
+        });
+    }
 });

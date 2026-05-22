@@ -1,0 +1,53 @@
+<nav class="navbar">
+    <div class="navbar-inner">
+        <a href="/" class="navbar-brand">
+            <div class="navbar-brand-mark">PRD</div>
+            <div class="navbar-brand-text">
+                <span class="navbar-title">Property Research Database</span>
+                <span class="navbar-subtitle">Search Australian suburbs, postcodes and addresses</span>
+            </div>
+        </a>
+
+        <button class="navbar-toggle" id="navbarToggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="navbarLinks">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+
+        <div class="navbar-links" id="navbarLinks">
+            <a href="/" class="navbar-link {% if request.path == '/' %}active{% endif %}">Home</a>
+            <a href="/search" class="navbar-link {% if request.path == '/search' %}active{% endif %}">Suburb Search</a>
+            <a href="/address-lookup" class="navbar-link {% if request.path == '/address-lookup' %}active{% endif %}">Address Lookup</a>
+            <a href="/australia-school-search" class="navbar-link {% if request.path == '/australia-school-search' %}active{% endif %}">School Search</a>
+            <a href="/pricing" class="navbar-link {% if request.path == '/pricing' %}active{% endif %}">Pricing</a>
+
+            <div class="navbar-divider"></div>
+
+            {% if current_user.is_authenticated %}
+            <div class="navbar-user">
+                <span class="navbar-user-name">{{ current_user.full_name }}</span>
+                <span class="navbar-user-tier">{{ current_user.tier_name }} Plan</span>
+            </div>
+            <a href="/dashboard" class="navbar-btn navbar-btn-outline">Dashboard</a>
+            <a href="/logout" class="navbar-btn navbar-btn-danger">Logout</a>
+            {% else %}
+            <a href="/login" class="navbar-btn navbar-btn-outline">Login</a>
+            <a href="/register" class="navbar-btn navbar-btn-primary">Sign Up</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+<script>
+    (function () {
+        var toggle = document.getElementById('navbarToggle');
+        var links = document.getElementById('navbarLinks');
+        if (toggle && links) {
+            toggle.addEventListener('click', function () {
+                var isOpen = links.classList.toggle('open');
+                toggle.classList.toggle('open', isOpen);
+                toggle.setAttribute('aria-expanded', isOpen);
+            });
+        }
+    })();
+</script>

@@ -48,50 +48,29 @@
 </head>
 
 <body>
-    <div class="container">
-        <!-- Header with gradient -->
-        <header class="header">
-            <h1>School Catchment Search</h1>
-            <p>Find all addresses within a school catchment area (NSW & VIC)</p>
-                <nav class="nav">
-                <a href="/australia-school-search">← Back to Australia School Search</a>
-            </nav>
-        </header>
+    {% include '_navbar.html' %}
 
-        <div class="hero-image">
-            <img src="https://images.unsplash.com/photo-1509062522246-3755977927d7?w=1200&h=400&fit=crop&q=80"
-                alt="School building exterior" loading="lazy">
+    <div class="page-banner">
+        <div class="page-banner-inner">
+            <p class="page-banner-eyebrow">Education Data</p>
+            <h1 class="page-banner-heading">School Catchment Search</h1>
+            <p class="page-banner-sub">Find all addresses within a school catchment area across NSW &amp; VIC</p>
         </div>
+    </div>
 
+    <div class="page-body">
+    <div class="container">
         <!-- Search Section -->
         <section class="search-section">
-            <!-- Featured Article Banner -->
-            <a href="/school-rankings" style="display: block; text-decoration: none; margin-bottom: var(--spacing-lg);"
-                class="rankings-banner">
-                <div
-                    style="position: relative; border-radius: var(--border-radius); overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); transition: transform 0.3s ease, box-shadow 0.3s ease;">
-                    <img src="https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?w=1200&h=300&fit=crop"
-                        alt="Students studying in library"
-                        style="width: 100%; height: 200px; object-fit: cover; display: block;">
-                    <div
-                        style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, rgba(30, 58, 138, 0.85) 0%, rgba(30, 58, 138, 0.65) 100%); display: flex; align-items: center; justify-content: center; padding: var(--spacing-lg);">
-                        .
-
-                        <div style="text-align: center; color: white;">
-                            <div
-                                style="display: inline-block; background: rgba(255, 255, 255, 0.2); padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-bottom: var(--spacing-sm); text-transform: uppercase; letter-spacing: 1px;">
-                                📚 New Resource
-                            </div>
-                            <h3
-                                style="font-size: 1.75rem; font-weight: 600; margin: var(--spacing-sm) 0; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);">
-                                NSW School Rankings Guide 2025
-                            </h3>
-                            <p style="font-size: 1rem; margin: 0; opacity: 0.95;">
-                                Complete rankings for selective, independent & primary schools with HSC & NAPLAN results
-                                →
-                            </p>
-                        </div>
+            <!-- Rankings article promo -->
+            <a href="/school-rankings" style="display:block; text-decoration:none; margin-bottom:var(--spacing-lg);" class="rankings-banner">
+                <div style="position:relative; border-radius:8px; overflow:hidden; background:#0b1d3e; border:1px solid #1e3a8a; padding:28px 32px; display:flex; align-items:center; justify-content:space-between; gap:24px; transition:box-shadow 0.2s;">
+                    <div>
+                        <span style="font-size:0.625rem; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:#60a5fa;">Resource</span>
+                        <h3 style="font-size:1.25rem; font-weight:700; color:#fff; margin:8px 0 6px; letter-spacing:-0.02em;">NSW School Rankings Guide 2025</h3>
+                        <p style="font-size:0.875rem; color:#94a3b8; margin:0;">Complete rankings for selective, independent &amp; primary schools with HSC &amp; NAPLAN results</p>
                     </div>
+                    <span style="color:#60a5fa; font-size:1.25rem; flex-shrink:0;">&rarr;</span>
                 </div>
             </a>
 
@@ -300,6 +279,7 @@
                     target="_blank">Data.gov.au</a></p>
         </footer>
     </div>
+    </div><!-- /.page-body -->
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
