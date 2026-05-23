@@ -14,6 +14,36 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# Maps user-supplied street type suffix (abbreviation or full name) → GNAF street_type_code value
+# GNAF stores full names as street_type_code (e.g. 'ROAD'), abbreviations in street_type_aut.name ('RD')
+_STREET_TYPE_TO_CODE: dict[str, str] = {
+    'ACCS': 'ACCESS', 'ALLY': 'ALLEY', 'ALWY': 'ALLEYWAY', 'APP': 'APPROACH', 'ARC': 'ARCADE',
+    'AV': 'AVENUE', 'AVE': 'AVENUE', 'BCH': 'BEACH', 'BWLK': 'BOARDWALK', 'BVD': 'BOULEVARD',
+    'BVDE': 'BOULEVARDE', 'BDGE': 'BRIDGE', 'BDWY': 'BROADWAY', 'BSWY': 'BUSWAY',
+    'BYPA': 'BYPASS', 'CSWY': 'CAUSEWAY', 'CTR': 'CENTRE', 'CH': 'CHASE', 'CIR': 'CIRCLE',
+    'CCT': 'CIRCUIT', 'CL': 'CLOSE', 'CON': 'CONCOURSE', 'CNR': 'CORNER', 'CSO': 'CORSO',
+    'CT': 'COURT', 'CTYD': 'COURTYARD', 'CR': 'CRESCENT', 'CRES': 'CRESCENT',
+    'DE': 'DEVIATION', 'DR': 'DRIVE', 'DVWY': 'DRIVEWAY', 'ENT': 'ENTRANCE',
+    'ESP': 'ESPLANADE', 'EST': 'ESTATE', 'EXP': 'EXPRESSWAY', 'FWY': 'FREEWAY',
+    'GWY': 'GATEWAY', 'GLEN': 'GLEN', 'GRA': 'GRANGE', 'GRN': 'GREEN', 'GR': 'GROVE',
+    'HTS': 'HEIGHTS', 'HWY': 'HIGHWAY', 'HILL': 'HILL', 'JNC': 'JUNCTION',
+    'LN': 'LANE', 'LANE': 'LANE', 'LNWY': 'LANEWAY', 'LINK': 'LINK', 'LOOP': 'LOOP',
+    'MALL': 'MALL', 'MEWS': 'MEWS', 'MTWY': 'MOTORWAY', 'PDE': 'PARADE', 'PARK': 'PARK',
+    'PWY': 'PARKWAY', 'PKWY': 'PARKWAY', 'PSGE': 'PASSAGE', 'PATH': 'PATH',
+    'PWAY': 'PATHWAY', 'PL': 'PLACE', 'PLZA': 'PLAZA', 'PNT': 'POINT',
+    'PREC': 'PRECINCT', 'PROM': 'PROMENADE', 'QY': 'QUAY', 'RAMP': 'RAMP',
+    'RES': 'RESERVE', 'RTT': 'RETREAT', 'RDGE': 'RIDGE', 'RISE': 'RISE',
+    'RVR': 'RIVER', 'RD': 'ROAD', 'RDS': 'ROADS', 'RDWY': 'ROADWAY',
+    'ROW': 'ROW', 'RUN': 'RUN', 'SQ': 'SQUARE', 'ST': 'STREET', 'STRP': 'STRIP',
+    'TCE': 'TERRACE', 'TRK': 'TRACK', 'TRL': 'TRAIL', 'TUNL': 'TUNNEL',
+    'VALE': 'VALE', 'VLLY': 'VALLEY', 'VIEW': 'VIEW', 'VWS': 'VIEWS',
+    'VLGE': 'VILLAGE', 'VSTA': 'VISTA', 'WALK': 'WALK', 'WKWY': 'WALKWAY',
+    'WTWY': 'WATERWAY', 'WAY': 'WAY', 'WHRF': 'WHARF', 'WD': 'WOOD',
+}
+# Also accept full names as input (e.g. user types 'BINGARA ROAD')
+for _c in list(_STREET_TYPE_TO_CODE.values()):
+    _STREET_TYPE_TO_CODE.setdefault(_c, _c)
+
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
@@ -594,7 +624,10 @@ def search_address():
     try:
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # Build dynamic query with DISTINCT ON to eliminate duplicates
+        # Build dynamic query with DISTINCT ON to eliminate duplicates.
+        # The LATERAL subquery looks up the most recent sale for the same parcel
+        # using a spatial proximity match (≤25 m) against public.nsw_property_sales.
+        # Returns NULL for addresses outside our loaded postcodes — shown as "—" in the UI.
         query = """
             SELECT DISTINCT ON (ad.address_detail_pid)
                 ad.address_detail_pid,
@@ -618,7 +651,9 @@ def search_address():
                 ad.postcode,
                 adg.latitude,
                 adg.longitude,
-                adg.geocode_type_code
+                adg.geocode_type_code,
+                TO_CHAR(gvl.purchase_price, 'FM$999,999,999') AS last_sold_price,
+                TO_CHAR(gvl.contract_date,  'FMDD Month YYYY') AS last_sale_date
             FROM gnaf.address_detail ad
             LEFT JOIN gnaf.flat_type_aut ft ON ad.flat_type_code = ft.code
             LEFT JOIN gnaf.street_locality sl ON ad.street_locality_pid = sl.street_locality_pid
@@ -626,18 +661,44 @@ def search_address():
             LEFT JOIN gnaf.locality l ON ad.locality_pid = l.locality_pid
             LEFT JOIN gnaf.state s ON l.state_pid = s.state_pid
             LEFT JOIN gnaf.address_default_geocode adg ON ad.address_detail_pid = adg.address_detail_pid
+            LEFT JOIN public.gnaf_vg_sale_link gvl ON gvl.address_detail_pid = ad.address_detail_pid
             WHERE ad.date_retired IS NULL
         """
         
         params = []
         
         if street_number:
-            query += " AND CAST(ad.number_first AS TEXT) LIKE %s"
-            params.append('%' + str(street_number) + '%')
+            # Parse suffix: '19B' → number=19, suffix='B'; '19' → number=19, suffix=None
+            _sn_match = re.match(r'^(\d+)([A-Za-z]*)$', street_number.strip())
+            if _sn_match:
+                _sn_num    = int(_sn_match.group(1))
+                _sn_suffix = _sn_match.group(2).upper()
+                if _sn_suffix:
+                    # Exact number + suffix match (e.g. '19B')
+                    query += " AND ad.number_first = %s AND UPPER(COALESCE(ad.number_first_suffix, '')) = %s"
+                    params.extend([_sn_num, _sn_suffix])
+                else:
+                    # Pure number — exact match
+                    query += " AND ad.number_first = %s"
+                    params.append(_sn_num)
+            else:
+                # Fallback for non-standard input (e.g. '19-21') — keep original LIKE behaviour
+                query += " AND CAST(ad.number_first AS TEXT) LIKE %s"
+                params.append('%' + str(street_number) + '%')
         
         if street:
-            query += " AND UPPER(sl.street_name) LIKE UPPER(%s)"
-            params.append('%' + str(street) + '%')
+            _parts = street.upper().split()
+            _last = _parts[-1] if _parts else ''
+            _gnaf_type = _STREET_TYPE_TO_CODE.get(_last)
+            if _gnaf_type and len(_parts) > 1:
+                # User supplied a type suffix (e.g. 'BINGARA RD') — match name and type separately
+                _name_part = ' '.join(_parts[:-1])
+                query += " AND UPPER(sl.street_name) LIKE UPPER(%s) AND UPPER(sl.street_type_code) = %s"
+                params.extend(['%' + _name_part + '%', _gnaf_type])
+            else:
+                # No recognisable type suffix — match on street_name only
+                query += " AND UPPER(sl.street_name) LIKE UPPER(%s)"
+                params.append('%' + str(street) + '%')
         
         if suburb:
             query += " AND UPPER(l.locality_name) LIKE UPPER(%s)"
@@ -725,6 +786,40 @@ def get_schools_for_address():
         if conn:
             conn.close()
         return jsonify({'error': f'Database query failed: {str(e)}'}), 500
+
+
+@app.route('/api/hazards', methods=['GET'])
+@login_required
+def get_hazards_for_address():
+    """
+    Get hazards that contain a given address (lat/lng)
+    Example: /api/hazards?lat=-33.8688&lng=151.2093
+    """
+    try:
+        lat = float(request.args.get('lat', ''))
+        lng = float(request.args.get('lng', ''))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Valid lat and lng parameters required'}), 400
+
+    try:
+        from nsw_hazard_api import get_wind_region, query_eplanning_hazards
+    except ImportError:
+        return jsonify({'error': 'Hazard API module not found'}), 500
+
+    output = {
+        "hazards": {},
+        "errors": []
+    }
+
+    # --- Cyclone/Wind Region ---
+    output["hazards"]["Cyclone"] = get_wind_region(lat)
+
+    # --- NSW ePlanning spatial hazards ---
+    hazards, hazard_errors = query_eplanning_hazards(lat, lng)
+    output["hazards"].update(hazards)
+    output["errors"].extend(hazard_errors)
+
+    return jsonify(output)
 
 
 @app.route('/api/stats', methods=['GET'])
@@ -1273,7 +1368,9 @@ def get_australia_school_addresses(acara_sml_id):
                         ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography
                     ) / 1000.0)::numeric,
                     2
-                ) as distance_km
+                ) as distance_km,
+                TO_CHAR(gvl.purchase_price, 'FM$999,999,999') AS last_sold_price,
+                TO_CHAR(gvl.contract_date,  'FMDD Month YYYY') AS last_sale_date
             FROM gnaf.address_default_geocode adg
             INNER JOIN gnaf.address_detail ad
                 ON ad.address_detail_pid = adg.address_detail_pid
@@ -1287,6 +1384,7 @@ def get_australia_school_addresses(acara_sml_id):
                 ON ad.locality_pid = l.locality_pid
             LEFT JOIN gnaf.state s
                 ON l.state_pid = s.state_pid
+            LEFT JOIN public.gnaf_vg_sale_link gvl ON gvl.address_detail_pid = ad.address_detail_pid
             WHERE adg.geom IS NOT NULL
                 -- Fast spatial index scan using GIST index on geom
                 AND ST_DWithin(
@@ -1960,7 +2058,9 @@ def get_school_addresses(school_id):
                 ROUND(CAST(ST_Distance(
                     agc.geom::geography,
                     sp.geom::geography
-                ) / 1000.0 AS numeric), 2) as distance_km
+                ) / 1000.0 AS numeric), 2) as distance_km,
+                TO_CHAR(gvl.purchase_price, 'FM$999,999,999') AS last_sold_price,
+                TO_CHAR(gvl.contract_date,  'FMDD Month YYYY') AS last_sale_date
             FROM gnaf.address_detail ad
             JOIN gnaf.address_default_geocode agc ON ad.address_detail_pid = agc.address_detail_pid
             JOIN gnaf.street_locality sl ON ad.street_locality_pid = sl.street_locality_pid
@@ -1968,6 +2068,7 @@ def get_school_addresses(school_id):
             JOIN gnaf.state s ON l.state_pid = s.state_pid
             LEFT JOIN gnaf.street_type_aut st ON sl.street_type_code = st.code
             LEFT JOIN gnaf.flat_type_aut ft ON ad.flat_type_code = ft.code
+            LEFT JOIN public.gnaf_vg_sale_link gvl ON gvl.address_detail_pid = ad.address_detail_pid
             CROSS JOIN school_catchment sc
             CROSS JOIN school_point sp
             WHERE ad.date_retired IS NULL

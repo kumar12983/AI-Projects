@@ -1194,6 +1194,8 @@ input[type="text"]::placeholder {
 
 .results-row-details td {
     padding: var(--spacing-md) !important;
+    max-width: 0;
+    width: 100%;
 }
 
 .expand-icon {
@@ -1210,8 +1212,11 @@ input[type="text"]::placeholder {
 
 .detail-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: var(--spacing-md);
+    max-width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 .detail-item {
