@@ -181,8 +181,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <th>GNAF ID</th>
                                 <th>Coordinates</th>
                                 <th>School Catchments</th>
+                                <th>Last Sold</th>
                                 <th>Useful Links</th>
                                 <th>Confidence</th>
+                                <th>Hazards</th>
                             </tr>
                         </thead>
                         <tbody id="addressResultsTableBody">
@@ -397,6 +399,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <td class="school-catchment-cell" style="font-size: 0.85rem;">
                                         <span style="color: #999;">Loading...</span>
                                     </td>
+                                    <td style="font-size: 0.85rem; white-space: nowrap;">
+                                        ${addr.last_sold_price
+                                            ? `<strong style="color: #166534;">${addr.last_sold_price}</strong>
+                                               <br><span style="font-size: 0.72rem; color: #6b7280;">${addr.last_sale_date || ''}</span>`
+                                            : '<span style="color: #d1d5db;">—</span>'}
+                                    </td>
                                     <td style="font-size: 0.85rem;">
                                         <div style="display: flex; flex-direction: column; gap: 6px;">
                                             ${realEstateUrl ? `<a href="${realEstateUrl}" target="_blank" style="display: block; text-align: center; padding: 4px 8px; background: #c41230; color: white; text-decoration: none; border-radius: 3px; font-size: 0.85rem; font-weight: 500; white-space: nowrap;" title="View on RealEstate.com.au">RealEstate</a>` : ''}
@@ -409,6 +417,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                               title="${confidenceTooltip}">
                                             ${confidenceText}
                                         </span>
+                                    </td>
+                                    <td style="font-size: 0.85rem; white-space: nowrap;">
+                                        ${addr.latitude && addr.longitude
+                                            ? `<button type="button" class="coords-button" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; cursor: pointer; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: 500;" onclick="fetchAddressHazards(${index}, ${addr.latitude}, ${addr.longitude}, this)" title="View Hazard Info">⚠️ View Hazard</button>
+                                           <div id="addr-hazard-${index}" style="margin-top:6px;"></div>`
+                                            : '<span style="color:#999;">N/A</span>'}
                                     </td>
                                 </tr>
                             `;
@@ -593,3 +607,69 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// ============================================
+// Property Hazards for Address Lookup
+// ============================================
+async function fetchAddressHazards(index, lat, lng, btn) {
+    if (!lat || !lng) return;
+
+    const hazardDiv = document.getElementById(`addr-hazard-${index}`);
+    if (!hazardDiv) return;
+
+    // Skip re-fetch
+    if (hazardDiv.dataset.loaded === 'true') {
+        hazardDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+    }
+
+    if (btn) btn.disabled = true;
+    hazardDiv.innerHTML = '<span style="color: #6b7280; font-size: 0.85rem;">Loading hazards... ⏳</span>';
+
+    try {
+        const response = await fetch(`/api/hazards?lat=${lat}&lng=${lng}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to fetch hazards');
+
+        const hazards = data.hazards || {};
+        let html = '<div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">';
+
+        ['Bushfire', 'Flood', 'Landslide'].forEach(type => {
+            const h = hazards[type] || {};
+            const icon = h.detected ? '⚠️' : '✅';
+            const color = h.detected ? '#dc2626' : '#16a34a';
+            html += `
+                <div style="padding: 8px 12px; background: #f9fafb; border-radius: 6px; border-left: 3px solid ${color};">
+                    <div style="font-weight: 600; font-size: 0.85rem; color: #374151;">${icon} ${type.toUpperCase()}: ${h.label || 'N/A'}</div>
+                    <div style="font-size: 0.8rem; color: #6b7280; margin-top: 2px;">${h.detail || 'No data'}</div>
+                </div>`;
+        });
+
+        const cyc = hazards.Cyclone || {};
+        const cycColor = cyc.cyclone_direct_risk ? '#dc2626' : (cyc.elevated_wind_risk ? '#f59e0b' : '#3b82f6');
+        html += `
+            <div style="padding: 8px 12px; background: #f9fafb; border-radius: 6px; border-left: 3px solid ${cycColor};">
+                <div style="font-weight: 600; font-size: 0.85rem; color: #374151;">🌀 CYCLONE / WIND REGION: ${cyc.wind_region || 'N/A'}</div>
+                <div style="font-size: 0.8rem; color: #6b7280; margin-top: 2px;">
+                    Direct Risk: <strong style="color: ${cyc.cyclone_direct_risk ? '#dc2626' : '#374151'}">${cyc.cyclone_direct_risk ? 'YES' : 'No'}</strong> &nbsp;|&nbsp;
+                    Elevated Wind: <strong style="color: ${cyc.elevated_wind_risk ? '#f59e0b' : '#374151'}">${cyc.elevated_wind_risk ? 'YES' : 'No'}</strong><br>
+                    <span style="color: #9ca3af;">${cyc.description || ''}</span>
+                </div>
+            </div>`;
+
+        if (data.errors && data.errors.length > 0) {
+            html += `<div style="font-size: 0.75rem; color: #d97706; margin-top: 2px;">⚠️ ${data.errors.join('<br>')}</div>`;
+        }
+        html += '</div>';
+
+        hazardDiv.innerHTML = html;
+        hazardDiv.dataset.loaded = 'true';
+        if (btn) btn.style.display = 'none';
+    } catch (err) {
+        console.error(err);
+        hazardDiv.innerHTML = `<span style="color: #dc2626; font-size: 0.85rem;">⚠️ Error: ${err.message}</span>`;
+        if (btn) btn.disabled = false;
+    }
+}
+
+window.fetchAddressHazards = fetchAddressHazards;

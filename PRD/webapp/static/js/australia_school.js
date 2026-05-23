@@ -802,9 +802,9 @@ function displayAddresses(addresses, total, append = false) {
                             </td>
                             <td style="font-weight: 600; color: #059669;">${distanceFromSchool} km</td>
                             <td>
-                                <span style="color: ${confidenceColor}; font-weight: 500; font-size: 0.9rem;">
-                                    ${confidenceText}
-                                </span>
+                                ${addr.last_sold_price
+                                    ? `<strong style="color: #166534; font-size: 0.9rem;">${addr.last_sold_price}</strong><br><span style="font-size: 0.75rem; color: #6b7280;">${addr.last_sale_date || ''}</span>`
+                                    : '<span style="color: #9ca3af;">—</span>'}
                             </td>
                             <td style="white-space: nowrap;">
                                 ${googleMapsUrl ? `<a href="${googleMapsUrl}" target="_blank" class="coords-button" title="View on Google Maps" onclick="event.stopPropagation()">📍 Map</a>` : ''}
@@ -825,6 +825,19 @@ function displayAddresses(addresses, total, append = false) {
                                     <div class="detail-item school-catchment-detail">
                                         <div class="detail-label">SCHOOL CATCHMENTS</div>
                                         <div class="detail-value"><span style="color: #999;">Loading...</span></div>
+                                    </div>
+                                    <div class="detail-item">
+                                        <div class="detail-label">CONFIDENCE</div>
+                                        <div class="detail-value">
+                                            <span style="color: ${confidenceColor}; font-weight: 500;">${confidenceText}</span>
+                                        </div>
+                                    </div>
+                                    <div class="detail-item" style="grid-column: 1 / -1;">
+                                        <div class="detail-label">PROPERTY HAZARDS</div>
+                                        <div class="detail-value">
+                                            <button type="button" class="coords-button" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; cursor: pointer; padding: 6px 14px; border-radius: 4px; font-size: 0.85rem; font-weight: 500; margin-bottom: 8px;" onclick="fetchHazards(${globalIndex}, ${addr.latitude || 'null'}, ${addr.longitude || 'null'}, event)" title="View Hazard Info">⚠️ View Hazard</button>
+                                            <div id="hazard-${globalIndex}"></div>
+                                        </div>
                                     </div>
                                     <div class="detail-item" style="grid-column: 1 / -1;">
                                         <div class="detail-label">PROPERTY LINKS</div>
@@ -855,7 +868,7 @@ function displayAddresses(addresses, total, append = false) {
                         <th style="width: 50px;"></th>
                         <th>ADDRESS</th>
                         <th>DISTANCE</th>
-                        <th>CONFIDENCE</th>
+                        <th>LAST SOLD</th>
                         <th>ACTIONS</th>
                     </tr>
                 </thead>
@@ -1056,3 +1069,107 @@ if (searchAddressBtn) {
 
 // Make toggleRowDetails available globally
 window.toggleRowDetails = toggleRowDetails;
+
+
+async function fetchHazards(index, lat, lng, event) {
+    // CRITICAL: stop the click from bubbling up to the <tr>'s onclick (toggleRowDetails)
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+
+    if (!lat || !lng) {
+        alert("Coordinates not available for this address.");
+        return;
+    }
+
+    // Force the details row OPEN without toggling — fixes the collapse problem.
+    // toggleRowDetails flips state, but we always want the row open here.
+    function forceExpand(idx) {
+        const detailsRow = document.getElementById(`details-${idx}`);
+        const mainRow = document.querySelector(`tr.results-row-main[data-row-index="${idx}"]`);
+        if (!detailsRow || !mainRow) return;
+
+        if (!detailsRow.classList.contains('show')) {
+            detailsRow.classList.add('show');
+            mainRow.classList.add('expanded');
+            const icon = mainRow.querySelector('.expand-icon');
+            if (icon) icon.textContent = '▾';
+
+            // Also trigger school catchments load (same as toggleRowDetails does)
+            const rowLat = mainRow.dataset.lat;
+            const rowLng = mainRow.dataset.lng;
+            if (rowLat && rowLng) loadSchoolCatchments(idx, rowLat, rowLng);
+        }
+    }
+
+    forceExpand(index);
+
+    const hazardValueDiv = document.getElementById(`hazard-${index}`);
+    if (!hazardValueDiv) return;
+
+    // Skip re-fetch if already loaded — just scroll into view
+    if (hazardValueDiv.dataset.loaded === 'true') {
+        hazardValueDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+    }
+
+    hazardValueDiv.innerHTML = '<span style="color: #6b7280; font-size: 0.85rem;">Loading hazards... ⏳</span>';
+
+    try {
+        const response = await fetch(`/api/hazards?lat=${lat}&lng=${lng}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to fetch hazards');
+        }
+
+        const hazards = data.hazards || {};
+
+        let html = '<div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">';
+
+        ['Bushfire', 'Flood', 'Landslide'].forEach(type => {
+            const h = hazards[type] || {};
+            const isDetected = h.detected;
+            const icon = isDetected ? '⚠️' : '✅';
+            const color = isDetected ? '#dc2626' : '#16a34a';
+            html += `
+                <div style="padding: 8px 12px; background: #f9fafb; border-radius: 6px; border-left: 3px solid ${color};">
+                    <div style="font-weight: 600; font-size: 0.85rem; color: #374151;">${icon} ${type.toUpperCase()}: ${h.label || 'N/A'}</div>
+                    <div style="font-size: 0.8rem; color: #6b7280; margin-top: 2px;">${h.detail || 'No data'}</div>
+                </div>`;
+        });
+
+        const cyc = hazards.Cyclone || {};
+        const cycColor = cyc.cyclone_direct_risk ? '#dc2626' : (cyc.elevated_wind_risk ? '#f59e0b' : '#3b82f6');
+        html += `
+            <div style="padding: 8px 12px; background: #f9fafb; border-radius: 6px; border-left: 3px solid ${cycColor};">
+                <div style="font-weight: 600; font-size: 0.85rem; color: #374151;">🌀 CYCLONE / WIND REGION: ${cyc.wind_region || 'N/A'}</div>
+                <div style="font-size: 0.8rem; color: #6b7280; margin-top: 2px;">
+                    Direct Risk: <strong style="color: ${cyc.cyclone_direct_risk ? '#dc2626' : '#374151'}">${cyc.cyclone_direct_risk ? 'YES' : 'No'}</strong> &nbsp;|&nbsp;
+                    Elevated Wind: <strong style="color: ${cyc.elevated_wind_risk ? '#f59e0b' : '#374151'}">${cyc.elevated_wind_risk ? 'YES' : 'No'}</strong><br>
+                    <span style="color: #9ca3af;">${cyc.description || ''}</span>
+                </div>
+            </div>`;
+
+        if (data.errors && data.errors.length > 0) {
+            html += `<div style="font-size: 0.75rem; color: #d97706; margin-top: 2px;">⚠️ ${data.errors.join('<br>')}</div>`;
+        }
+
+        html += '</div>';
+        hazardValueDiv.innerHTML = html;
+        hazardValueDiv.dataset.loaded = 'true';
+
+        // Ensure the row is still open after the async gap (in case user clicked it during load)
+        forceExpand(index);
+
+    } catch (err) {
+        console.error(err);
+        hazardValueDiv.innerHTML = `<span style="color: #dc2626; font-size: 0.85rem;">⚠️ Error: ${err.message}</span>`;
+        forceExpand(index);
+    }
+}
+
+// Make available globally
+window.fetchHazards = fetchHazards;
+
