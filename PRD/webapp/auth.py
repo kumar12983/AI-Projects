@@ -201,7 +201,7 @@ def logout():
     """Logout current user"""
     logout_user()
     flash('Logged out successfully', 'success')
-    return redirect(url_for('index'))
+    return redirect(url_for('pages.index'))
 
 
 @auth_bp.route('/dashboard')
@@ -211,7 +211,7 @@ def dashboard():
     conn = get_db_connection()
     if not conn:
         flash('Database connection error', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('pages.index'))
     
     usage_count = current_user.get_monthly_usage(conn)
     conn.close()
