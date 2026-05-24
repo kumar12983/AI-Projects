@@ -7,6 +7,7 @@ import os
 from flask import Flask, jsonify
 from flask_login import LoginManager
 from flask_mail import Mail
+from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
 
 from blueprints.db import get_db_connection
@@ -23,6 +24,13 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
+# JWT configuration
+from datetime import timedelta
+app.config['JWT_SECRET_KEY']                 = os.getenv('JWT_SECRET_KEY', app.secret_key)
+app.config['JWT_ACCESS_TOKEN_EXPIRES']       = timedelta(minutes=15)
+app.config['JWT_REFRESH_TOKEN_EXPIRES']      = timedelta(days=7)
+jwt = JWTManager(app)
+
 # Flask-Mail configuration (set these in your .env file)
 app.config['MAIL_SERVER']         = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
 app.config['MAIL_PORT']           = int(os.getenv('MAIL_PORT', '587'))
@@ -37,6 +45,14 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Please log in to access this page'
+
+@login_manager.unauthorized_handler
+def unauthorized():
+    """Return JSON 401 for API routes; redirect to login for page routes."""
+    from flask import request, jsonify, redirect, url_for
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Authentication required', 'login_url': '/login'}), 401
+    return redirect(url_for('auth.login'))
 
 
 @login_manager.user_loader
@@ -64,6 +80,9 @@ app.register_blueprint(auth_bp)
 
 from payments import payments_bp
 app.register_blueprint(payments_bp)
+
+from api_auth import api_auth_bp
+app.register_blueprint(api_auth_bp)
 
 
 

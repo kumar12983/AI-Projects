@@ -1521,7 +1521,9 @@ async function fetchAndDisplaySchools(lat, lng, schoolCell) {
         const response = await fetch(`/api/address/schools?lat=${lat}&lng=${lng}`);
         const data = await response.json();
 
-        if (data.schools && data.schools.length > 0) {
+        if (response.status === 401) {
+            schoolCell.innerHTML = `<a href="/login" style="display: inline-block; padding: 4px 10px; background: #1e3a8a; color: white; text-decoration: none; border-radius: 4px; font-size: 0.8rem; font-weight: 500; white-space: nowrap;">Login to see catchment</a>`;
+        } else if (data.schools && data.schools.length > 0) {
             const schoolsHtml = data.schools.map(school => {
                 const typeColors = {
                     'PRIMARY': '#2196F3',
@@ -1599,6 +1601,10 @@ async function fetchSchoolHazards(index, lat, lng, event) {
     try {
         const response = await fetch(`/api/hazards?lat=${lat}&lng=${lng}`);
         const data = await response.json();
+        if (response.status === 401) {
+            targets.forEach(t => { t.innerHTML = `<a href="/login" style="display: inline-block; padding: 4px 10px; background: #1e3a8a; color: white; text-decoration: none; border-radius: 4px; font-size: 0.8rem; font-weight: 500;">Login to view hazards</a>`; });
+            return;
+        }
         if (!response.ok) throw new Error(data.error || 'Failed to fetch hazards');
 
         const hazards = data.hazards || {};

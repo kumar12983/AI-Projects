@@ -1025,8 +1025,12 @@ async function loadSchoolCatchments(index, lat, lng) {
         const response = await fetch(`/api/address/schools?lat=${lat}&lng=${lng}&state=${state}`);
         const data = await response.json();
         
+        if (response.status === 401) {
+            catchmentDetail.innerHTML = `<a href="/login" style="display: inline-block; padding: 4px 10px; background: #1e3a8a; color: white; text-decoration: none; border-radius: 4px; font-size: 0.8rem; font-weight: 500; white-space: nowrap;">Login to see catchment</a>`;
+            return;
+        }
+        
         if (data.schools && data.schools.length > 0) {
-            // Group by school_id to combine multiple year levels
             const schoolMap = new Map();
             data.schools.forEach(school => {
                 if (!schoolMap.has(school.school_id)) {
@@ -1119,7 +1123,10 @@ async function fetchHazards(index, lat, lng, event) {
     try {
         const response = await fetch(`/api/hazards?lat=${lat}&lng=${lng}`);
         const data = await response.json();
-
+        if (response.status === 401) {
+            hazardValueDiv.innerHTML = `<a href="/login" style="display: inline-block; padding: 4px 10px; background: #1e3a8a; color: white; text-decoration: none; border-radius: 4px; font-size: 0.8rem; font-weight: 500;">Login to view hazards</a>`;
+            return;
+        }
         if (!response.ok) {
             throw new Error(data.error || 'Failed to fetch hazards');
         }

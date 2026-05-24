@@ -24,6 +24,7 @@ def app():
 
     # Provide minimal env so app.py does not blow up without a real .env
     os.environ.setdefault("SECRET_KEY", "test-secret")
+    os.environ.setdefault("JWT_SECRET_KEY", "test-jwt-secret")
     os.environ.setdefault("DB_HOST", "localhost")
     os.environ.setdefault("DB_NAME", "gnaf_db")
     os.environ.setdefault("DB_USER", "postgres")
@@ -43,6 +44,21 @@ def client(app):
     return app.test_client()
 
 
+@pytest.fixture
+def jwt_token(app):
+    """Return a valid JWT access token for a dummy user (id=1)."""
+    with app.app_context():
+        from flask_jwt_extended import create_access_token
+        # flask-jwt-extended 4.7+ requires identity to be a string.
+        return create_access_token(identity="1")
+
+
+@pytest.fixture
+def auth_headers(jwt_token):
+    """Authorization header dict for protected API requests."""
+    return {'Authorization': f'Bearer {jwt_token}'}
+
+
 # ---------------------------------------------------------------------------
 # Shared DB mock helper
 # ---------------------------------------------------------------------------
@@ -52,6 +68,10 @@ def make_cursor_mock(rows):
     cursor = MagicMock()
     cursor.fetchall.return_value = rows
     cursor.fetchone.return_value = rows[0] if rows else None
+    # Services use `with conn.cursor(...) as cur:` — ensure __enter__ returns this
+    # same cursor so fetchall/fetchone return the configured values.
+    cursor.__enter__ = MagicMock(return_value=cursor)
+    cursor.__exit__ = MagicMock(return_value=False)
     return cursor
 
 
@@ -261,15 +281,21 @@ class TestAddressSearch:
 class TestAddressSchools:
     ENDPOINT = "/api/address/schools"
 
-    def test_unauthenticated_redirects(self, client):
+    def test_unauthenticated_returns_401(self, client):
         resp = client.get(f"{self.ENDPOINT}?lat=-33.8688&lng=151.2093")
-        assert resp.status_code in (302, 401)
+        assert resp.status_code == 401
 
-    def test_invalid_lat_returns_422_or_redirect(self, client):
-        """Without auth the redirect happens first, but validation is wired."""
-        resp = client.get(f"{self.ENDPOINT}?lat=999&lng=151.2")
-        # Either auth redirect or 422 from validator — both acceptable
-        assert resp.status_code in (302, 401, 422)
+    def test_invalid_lat_returns_422(self, client, auth_headers):
+        resp = client.get(f"{self.ENDPOINT}?lat=999&lng=151.2", headers=auth_headers)
+        assert resp.status_code == 422
+
+    def test_authenticated_with_db_returns_200(self, client, auth_headers):
+        conn, _ = make_conn_mock([])
+        with patch("blueprints.search.get_db_connection", return_value=conn):
+            resp = client.get(
+                f"{self.ENDPOINT}?lat=-33.8688&lng=151.2093", headers=auth_headers
+            )
+        assert resp.status_code == 200
 
 
 # ===========================================================================
@@ -279,13 +305,13 @@ class TestAddressSchools:
 class TestHazards:
     ENDPOINT = "/api/hazards"
 
-    def test_unauthenticated_redirects(self, client):
+    def test_unauthenticated_returns_401(self, client):
         resp = client.get(f"{self.ENDPOINT}?lat=-33.8&lng=151.2")
-        assert resp.status_code in (302, 401)
+        assert resp.status_code == 401
 
-    def test_missing_params_redirects_or_422(self, client):
-        resp = client.get(self.ENDPOINT)
-        assert resp.status_code in (302, 401, 422)
+    def test_missing_params_returns_422(self, client, auth_headers):
+        resp = client.get(self.ENDPOINT, headers=auth_headers)
+        assert resp.status_code == 422
 
 
 # ===========================================================================
@@ -295,13 +321,13 @@ class TestHazards:
 class TestAutocompleteSchools:
     ENDPOINT = "/api/autocomplete/schools"
 
-    def test_unauthenticated_redirects(self, client):
+    def test_unauthenticated_returns_401(self, client):
         resp = client.get(f"{self.ENDPOINT}?q=Hornsby")
-        assert resp.status_code in (302, 401)
+        assert resp.status_code == 401
 
-    def test_invalid_state_redirects_or_422(self, client):
-        resp = client.get(f"{self.ENDPOINT}?q=Hornsby&state=BADSTATE")
-        assert resp.status_code in (302, 401, 422)
+    def test_invalid_state_returns_422(self, client, auth_headers):
+        resp = client.get(f"{self.ENDPOINT}?q=Hornsby&state=BADSTATE", headers=auth_headers)
+        assert resp.status_code == 422
 
 
 # ===========================================================================
@@ -311,13 +337,13 @@ class TestAutocompleteSchools:
 class TestAutocompleteAusSchools:
     ENDPOINT = "/api/autocomplete/australia-schools"
 
-    def test_unauthenticated_redirects(self, client):
+    def test_unauthenticated_returns_401(self, client):
         resp = client.get(f"{self.ENDPOINT}?q=Hornsby")
-        assert resp.status_code in (302, 401)
+        assert resp.status_code == 401
 
-    def test_invalid_state_redirects_or_422(self, client):
-        resp = client.get(f"{self.ENDPOINT}?q=Hornsby&state=BADSTATE")
-        assert resp.status_code in (302, 401, 422)
+    def test_invalid_state_returns_422(self, client, auth_headers):
+        resp = client.get(f"{self.ENDPOINT}?q=Hornsby&state=BADSTATE", headers=auth_headers)
+        assert resp.status_code == 422
 
 
 # ===========================================================================
@@ -337,6 +363,9 @@ class TestStats:
             "last_refreshed": None,
         }
         summary_cursor.fetchall.return_value = []
+        # Services use `with conn.cursor(...) as cur:` context manager.
+        summary_cursor.__enter__ = MagicMock(return_value=summary_cursor)
+        summary_cursor.__exit__ = MagicMock(return_value=False)
         conn.cursor.return_value = summary_cursor
 
         with patch("blueprints.search.get_db_connection", return_value=conn):
@@ -349,6 +378,47 @@ class TestStats:
         with patch("blueprints.search.get_db_connection", return_value=None):
             resp = client.get(self.ENDPOINT)
         assert resp.status_code == 500
+
+
+# ===========================================================================
+# /api/auth  (JWT login / refresh / logout)
+# ===========================================================================
+
+class TestApiAuth:
+
+    def test_login_missing_fields_returns_400(self, client):
+        resp = client.post('/api/auth/login', json={})
+        assert resp.status_code == 400
+
+    def test_login_invalid_credentials_returns_401(self, client):
+        with patch('services.user_service.authenticate_user', return_value=None), \
+             patch('api_auth.get_db_connection', return_value=MagicMock()):
+            resp = client.post('/api/auth/login', json={'email': 'a@b.com', 'password': 'wrong'})
+        assert resp.status_code == 401
+
+    def test_login_valid_returns_tokens(self, client, app):
+        from models import User
+        fake_user = MagicMock(spec=User)
+        fake_user.user_id = 1
+        with patch('services.user_service.authenticate_user', return_value=fake_user), \
+             patch('api_auth.get_db_connection', return_value=MagicMock()):
+            resp = client.post('/api/auth/login', json={'email': 'a@b.com', 'password': 'correct'})
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert 'access_token' in data
+        assert 'refresh_token' in data
+
+    def test_refresh_without_token_returns_401(self, client):
+        resp = client.post('/api/auth/refresh')
+        assert resp.status_code == 401
+
+    def test_logout_without_token_returns_401(self, client):
+        resp = client.delete('/api/auth/logout')
+        assert resp.status_code == 401
+
+    def test_logout_with_valid_token_returns_200(self, client, auth_headers):
+        resp = client.delete('/api/auth/logout', headers=auth_headers)
+        assert resp.status_code == 200
 
 
 # ===========================================================================

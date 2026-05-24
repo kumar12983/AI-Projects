@@ -459,12 +459,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetch(`/api/address/schools?lat=${lat}&lng=${lng}&state=${state}`);
                 const data = await response.json();
 
-                if (response.status === 401 || response.status === 403) {
+                if (response.status === 401) {
                     schoolCell.innerHTML = `
                         <a href="/login" style="display: inline-block; padding: 6px 12px; background: #1e3a8a; color: white; text-decoration: none; border-radius: 4px; font-size: 0.85rem; font-weight: 500; white-space: nowrap;">
                             Login to see catchment
                         </a>
                     `;
+                } else if (!response.ok) {
+                    throw new Error(data.error || `Request failed (${response.status})`);
                 } else if (data.schools && data.schools.length > 0) {
                     const typeColors = {
                         'PRIMARY': '#2196F3',
@@ -515,11 +517,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (error) {
                 console.error('Error fetching schools:', error);
-                schoolCell.innerHTML = `
-                    <a href="/login" style="display: inline-block; padding: 6px 12px; background: #1e3a8a; color: white; text-decoration: none; border-radius: 4px; font-size: 0.85rem; font-weight: 500; white-space: nowrap;">
-                        Login to see catchment
-                    </a>
-                `;
+                // SyntaxError = non-JSON response (Flask-Login redirected to HTML login page)
+                if (error instanceof SyntaxError) {
+                    schoolCell.innerHTML = `
+                        <a href="/login" style="display: inline-block; padding: 6px 12px; background: #1e3a8a; color: white; text-decoration: none; border-radius: 4px; font-size: 0.85rem; font-weight: 500; white-space: nowrap;">
+                            Login to see catchment
+                        </a>
+                    `;
+                } else {
+                    schoolCell.innerHTML = `<span style="color: #dc3545; font-size: 0.85rem;">⚠️ Error loading</span>`;
+                }
             }
         }
     }
@@ -629,6 +636,11 @@ async function fetchAddressHazards(index, lat, lng, btn) {
     try {
         const response = await fetch(`/api/hazards?lat=${lat}&lng=${lng}`);
         const data = await response.json();
+        if (response.status === 401) {
+            hazardDiv.innerHTML = `<a href="/login" style="display: inline-block; padding: 4px 10px; background: #1e3a8a; color: white; text-decoration: none; border-radius: 4px; font-size: 0.8rem; font-weight: 500;">Login to view hazards</a>`;
+            if (btn) btn.style.display = 'none';
+            return;
+        }
         if (!response.ok) throw new Error(data.error || 'Failed to fetch hazards');
 
         const hazards = data.hazards || {};
