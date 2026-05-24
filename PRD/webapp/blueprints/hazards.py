@@ -4,6 +4,8 @@ Hazard API routes.
 from flask import Blueprint, request, jsonify
 from flask_login import login_required
 
+from .validators import HazardQuery, validate_query_params
+
 hazards_bp = Blueprint('hazards', __name__)
 
 
@@ -14,11 +16,11 @@ def get_hazards_for_address():
     Get hazards that contain a given address (lat/lng)
     Example: /api/hazards?lat=-33.8688&lng=151.2093
     """
-    try:
-        lat = float(request.args.get('lat', ''))
-        lng = float(request.args.get('lng', ''))
-    except (TypeError, ValueError):
-        return jsonify({'error': 'Valid lat and lng parameters required'}), 400
+    validated, err = validate_query_params(HazardQuery, request.args)
+    if err:
+        return err
+    lat = validated.lat
+    lng = validated.lng
 
     try:
         from nsw_hazard_api import get_wind_region, query_eplanning_hazards

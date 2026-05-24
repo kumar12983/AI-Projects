@@ -9,6 +9,7 @@ from flask_login import login_required
 from psycopg2.extras import RealDictCursor
 
 from .db import get_db_connection, is_coordinate_like
+from .validators import AusSchoolAutocompleteQuery, validate_query_params
 
 aus_schools_bp = Blueprint('aus_schools', __name__)
 
@@ -21,8 +22,11 @@ def autocomplete_australia_schools():
     Supports state filtering
     Example: /api/autocomplete/australia-schools?q=Hornsby&state=NSW
     """
-    query = str(request.args.get('q', '')).strip()
-    state = str(request.args.get('state', '')).strip()
+    validated, err = validate_query_params(AusSchoolAutocompleteQuery, request.args)
+    if err:
+        return err
+    query = validated.q
+    state = validated.state or ''
 
     if not query or len(query) < 3:
         return jsonify([])
