@@ -4,9 +4,8 @@ Authentication routes and decorators for freemium access control
 from functools import wraps
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, session
 from flask_login import login_user, logout_user, login_required, current_user
-from flask_mail import Message
 from models import User
-import psycopg2
+from services import user_service
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -95,51 +94,22 @@ def register():
     if not conn:
         return jsonify({'error': 'Database connection failed'}), 500
 
-    # Ensure required tables exist before attempting registration
     try:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT table_name
-            FROM information_schema.tables
-            WHERE table_schema = 'webapp'
-              AND table_name IN ('users', 'subscription_tiers')
-        """)
-        existing_tables = {row[0] for row in cursor.fetchall()}
-        cursor.close()
-
-        missing_tables = {'users', 'subscription_tiers'} - existing_tables
-        if missing_tables:
-            conn.close()
-            return jsonify({
-                'error': 'Database not initialized',
-                'message': 'Missing required tables. Run database_migrations/001_create_users_subscriptions.sql',
-                'missing_tables': sorted(list(missing_tables))
-            }), 500
+        user_id = user_service.register_user(conn, email, password, full_name)
     except Exception as e:
         conn.close()
-        return jsonify({
-            'error': 'Database check failed',
-            'message': 'Unable to verify database schema. Please check database connectivity.'
-        }), 500
-    
-    # Check if user already exists
-    existing = User.get_by_email(conn, email)
-    if existing:
+        return jsonify({'error': f'Registration failed: {str(e)}'}), 500
+    finally:
         conn.close()
+
+    if user_id is None:
         return jsonify({'error': 'Email already registered'}), 400
-    
-    # Create new user
-    user_id = User.create_user(conn, email, password, full_name)
-    conn.close()
-    
-    if user_id:
-        return jsonify({
-            'success': True,
-            'message': 'Account created successfully! Please log in.',
-            'redirect': '/login'
-        })
-    else:
-        return jsonify({'error': 'Registration failed'}), 500
+
+    return jsonify({
+        'success': True,
+        'message': 'Account created successfully! Please log in.',
+        'redirect': '/login'
+    })
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -158,36 +128,19 @@ def login():
     conn = get_db_connection()
     if not conn:
         return jsonify({'error': 'Database connection failed'}), 500
-    
-    user_data = User.get_by_email(conn, email)
-    
-    if not user_data or not User.verify_password(user_data['password_hash'], password):
+
+    try:
+        user = user_service.authenticate_user(conn, email, password)
+    except Exception as e:
         conn.close()
+        return jsonify({'error': f'Login failed: {str(e)}'}), 500
+    finally:
+        conn.close()
+
+    if not user:
         return jsonify({'error': 'Invalid email or password'}), 401
-    
-    # Create User object and log in
-    user = User(
-        user_data['user_id'],
-        user_data['email'],
-        user_data['full_name'],
-        user_data['tier_id'],
-        user_data['tier_name'],
-        user_data['searches_per_month'],
-        user_data['can_export_data'],
-        user_data['can_access_analytics'],
-        user_data['can_access_school_catchments'],
-        user_data['subscription_status']
-    )
-    
-    # Update last login
-    cursor = conn.cursor()
-    cursor.execute("UPDATE webapp.users SET last_login = CURRENT_TIMESTAMP WHERE user_id = %s", (user.user_id,))
-    conn.commit()
-    cursor.close()
-    conn.close()
-    
+
     login_user(user, remember=True)
-    
     return jsonify({
         'success': True,
         'message': 'Logged in successfully',
@@ -242,33 +195,12 @@ def forgot_password():
     if not conn:
         return jsonify({'error': 'Database connection failed'}), 500
 
-    raw_token = User.set_reset_token(conn, email)
-    conn.close()
+    def _build_reset_url(token):
+        return url_for('auth.reset_password', token=token, _external=True)
 
-    # Always return the same success message to prevent email enumeration
-    if raw_token:
-        reset_url = url_for('auth.reset_password', token=raw_token, _external=True)
-        try:
-            from app import mail
-            msg = Message(
-                subject='Reset Your Password – Property Research Database',
-                recipients=[email],
-                html=f'''
-<p>Hi,</p>
-<p>We received a request to reset the password for your account.</p>
-<p><a href="{reset_url}" style="background:#1e3a8a;color:#fff;padding:10px 20px;
-   border-radius:5px;text-decoration:none;font-weight:600;">Reset Password</a></p>
-<p>Or copy this link into your browser:<br>
-   <a href="{reset_url}">{reset_url}</a></p>
-<p>This link expires in <strong>1 hour</strong>. If you did not request this,
-   you can safely ignore this email — your password will not be changed.</p>
-<p>— Property Research Database</p>
-''',
-            )
-            mail.send(msg)
-        except Exception as exc:
-            # Log but don't expose internal errors to the client
-            print(f"[forgot_password] email send error: {exc}")
+    from app import mail as _mail
+    user_service.request_password_reset(conn, email, _mail, _build_reset_url)
+    conn.close()
 
     return jsonify({
         'success': True,
