@@ -8,6 +8,15 @@ from flask_login import login_required
 from psycopg2.extras import RealDictCursor
 
 from .db import get_db_connection, is_coordinate_like, _STREET_TYPE_TO_CODE
+from .validators import (
+    AddressSearchQuery,
+    AutocompleteQuery,
+    CoordinateQuery,
+    FullAddressAutocompleteQuery,
+    PostcodeQuery,
+    SuburbQuery,
+    validate_query_params,
+)
 
 search_bp = Blueprint('search', __name__)
 
@@ -18,13 +27,10 @@ def search_suburbs_by_postcode():
     Search suburbs by postcode
     Example: /api/search/suburbs?postcode=2000
     """
-    postcode = request.args.get('postcode', '').strip()
-
-    if not postcode:
-        return jsonify({'error': 'Postcode parameter is required'}), 400
-
-    if not postcode.isdigit() or len(postcode) != 4:
-        return jsonify({'error': 'Invalid postcode format. Must be 4 digits'}), 400
+    validated, err = validate_query_params(PostcodeQuery, request.args)
+    if err:
+        return err
+    postcode = validated.postcode
 
     conn = get_db_connection()
     if not conn:
@@ -66,10 +72,10 @@ def search_postcodes_by_suburb():
     Search postcodes by suburb name
     Example: /api/search/postcodes?suburb=Sydney
     """
-    suburb = request.args.get('suburb', '').strip()
-
-    if not suburb:
-        return jsonify({'error': 'Suburb parameter is required'}), 400
+    validated, err = validate_query_params(SuburbQuery, request.args)
+    if err:
+        return err
+    suburb = validated.suburb
 
     conn = get_db_connection()
     if not conn:
@@ -112,7 +118,10 @@ def autocomplete_suburbs():
     Autocomplete suburb names
     Example: /api/autocomplete/suburbs?q=Syd
     """
-    query = str(request.args.get('q', '')).strip()
+    validated, err = validate_query_params(AutocompleteQuery, request.args)
+    if err:
+        return err
+    query = validated.q
 
     if not query or len(query) < 2:
         return jsonify([])
@@ -153,7 +162,10 @@ def autocomplete_streets():
     Autocomplete street names
     Example: /api/autocomplete/streets?q=George
     """
-    query = str(request.args.get('q', '')).strip()
+    validated, err = validate_query_params(AutocompleteQuery, request.args)
+    if err:
+        return err
+    query = validated.q
 
     if not query or len(query) < 2:
         return jsonify([])
@@ -204,8 +216,11 @@ def autocomplete_full_address():
     number_first = X filters the small residual set with no extra overhead.
     At least one text token >= 3 chars (or state) is required to avoid full seq-scan.
     """
-    query = str(request.args.get('q', '')).strip()
-    state = str(request.args.get('state', '')).strip()
+    validated, err = validate_query_params(FullAddressAutocompleteQuery, request.args)
+    if err:
+        return err
+    query = validated.q
+    state = validated.state or ''
 
     if not query or len(query) < 4:
         return jsonify([])
@@ -294,15 +309,15 @@ def search_address():
     Search for addresses by street name or locality
     Example: /api/address/search?street=George&suburb=Sydney&street_number=283
     """
-    street_number = request.args.get('street_number', '').strip()
-    street = request.args.get('street', '').strip()
-    suburb = request.args.get('suburb', '').strip()
-    postcode = request.args.get('postcode', '').strip()
-    state = request.args.get('state', '').strip()
-    limit = int(request.args.get('limit', 50))
-
-    if not street and not suburb and not postcode and not state:
-        return jsonify({'error': 'At least one search parameter required'}), 400
+    validated, err = validate_query_params(AddressSearchQuery, request.args)
+    if err:
+        return err
+    street_number = validated.street_number or ''
+    street = validated.street or ''
+    suburb = validated.suburb or ''
+    postcode = validated.postcode or ''
+    state = validated.state or ''
+    limit = validated.limit
 
     conn = get_db_connection()
     if not conn:
@@ -415,12 +430,11 @@ def get_schools_for_address():
     Get schools that contain a given address (lat/lng) in their catchment
     Example: /api/address/schools?lat=-33.8688&lng=151.2093&state=VIC
     """
-    try:
-        lat = float(request.args.get('lat', ''))
-        lng = float(request.args.get('lng', ''))
-    except (TypeError, ValueError):
-        return jsonify({'error': 'Valid lat and lng parameters required'}), 400
-
+    validated, err = validate_query_params(CoordinateQuery, request.args)
+    if err:
+        return err
+    lat = validated.lat
+    lng = validated.lng
     state = str(request.args.get('state', 'NSW')).strip()
 
     conn = get_db_connection()

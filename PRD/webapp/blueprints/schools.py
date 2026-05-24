@@ -8,6 +8,7 @@ from flask_login import login_required
 from psycopg2.extras import RealDictCursor
 
 from .db import get_db_connection, is_coordinate_like
+from .validators import SchoolAutocompleteQuery, validate_query_params
 
 schools_bp = Blueprint('schools', __name__)
 
@@ -20,9 +21,12 @@ def autocomplete_schools():
     Prioritizes exact matches, then starts-with, then contains
     Example: /api/autocomplete/schools?q=Hornsby NPS&type=PRIMARY
     """
-    query = str(request.args.get('q', '')).strip()
-    school_type = str(request.args.get('type', '')).strip()
-    state = str(request.args.get('state', 'NSW')).strip()
+    validated, err = validate_query_params(SchoolAutocompleteQuery, request.args)
+    if err:
+        return err
+    query = validated.q
+    school_type = validated.type or ''
+    state = validated.state
 
     if not query or len(query) < 3:
         return jsonify([])
