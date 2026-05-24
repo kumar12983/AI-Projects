@@ -1,0 +1,31 @@
+# Keep Copilot focused on the Flask app and active source files.
+# Manually attach files from ignored paths when you need them for a specific task.
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# Python caches and local artifacts
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.log
+
+# Large archived datasets and bulk imports
+scripts/vg_data/
+**/*.zip
+data_dumps/
+backups/
+
+# Generated or low-signal database history
+database/migrations/
+database/flood study/
+
+# Deployment and reference docs that are expensive in broad workspace scans
+deployment/
+MD/
+
+# IDE and notebook noise
+.vscode/
+**/.ipynb_checkpoints/
