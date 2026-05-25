@@ -50,11 +50,11 @@ HAZARD_IDENTIFY_URL = (
 )
 
 # Layer IDs within the Planning_Portal_Hazard MapServer
-# (based on published NSW ePlanning service directory)
+# (verified against live service: mapprod3.environment.nsw.gov.au/.../Planning_Portal_Hazard/MapServer)
 HAZARD_LAYER_MAP = {
-    0: "Bushfire",
-    1: "Flood",
-    2: "Landslide",
+    229: "Bushfire",   # Bushfire Prone Land
+    230: "Flood",      # Flood Planning Map
+    232: "Landslide",  # Landslide Risk Land
 }
 
 # BoM Wind Regions (AS/NZS 1170.2) approximate latitude thresholds for NSW.
