@@ -624,9 +624,11 @@ async function fetchAddressHazards(index, lat, lng, btn) {
     const hazardDiv = document.getElementById(`addr-hazard-${index}`);
     if (!hazardDiv) return;
 
-    // Skip re-fetch
+    // Toggle if already loaded
     if (hazardDiv.dataset.loaded === 'true') {
-        hazardDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        const isVisible = hazardDiv.style.display !== 'none';
+        hazardDiv.style.display = isVisible ? 'none' : '';
+        if (btn) btn.innerHTML = isVisible ? '⚠️ View Hazard' : '🙈 Hide Hazard';
         return;
     }
 
@@ -676,7 +678,7 @@ async function fetchAddressHazards(index, lat, lng, btn) {
 
         hazardDiv.innerHTML = html;
         hazardDiv.dataset.loaded = 'true';
-        if (btn) btn.style.display = 'none';
+        if (btn) { btn.innerHTML = '🙈 Hide Hazard'; btn.disabled = false; }
     } catch (err) {
         console.error(err);
         hazardDiv.innerHTML = `<span style="color: #dc2626; font-size: 0.85rem;">⚠️ Error: ${err.message}</span>`;
