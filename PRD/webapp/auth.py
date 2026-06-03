@@ -198,8 +198,7 @@ def forgot_password():
     def _build_reset_url(token):
         return url_for('auth.reset_password', token=token, _external=True)
 
-    from app import mail as _mail
-    user_service.request_password_reset(conn, email, _mail, _build_reset_url)
+    user_service.request_password_reset(conn, email, _build_reset_url)
     conn.close()
 
     return jsonify({

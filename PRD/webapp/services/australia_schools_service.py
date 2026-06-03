@@ -6,7 +6,7 @@ import traceback
 
 from psycopg2.extras import RealDictCursor
 
-from db_utils import is_coordinate_like
+from db_utils import is_coordinate_like, _STREET_TYPE_TO_CODE
 
 
 def autocomplete_australia_schools(conn, query: str, state: str = '') -> list:
@@ -36,7 +36,7 @@ def autocomplete_australia_schools(conn, query: str, state: str = '') -> list:
         )
         return [
             {'acara_sml_id': r['acara_sml_id'], 'school_name': r['school_name'],
-             'state': r['state'], 'school_sector': r['school_sector']}
+             'state': r['state'], 'school_type': r['school_sector']}
             for r in cur.fetchall()
         ]
 
@@ -95,19 +95,18 @@ def get_australia_school_info(conn, acara_sml_id) -> dict | None:
         'acara_sml_id':     school['acara_sml_id'],
         'school_name':      school['school_name'],
         'state':            school['state'],
-        'school_sector':    school['school_sector'],
+        'sector':           school['school_sector'],
         'latitude':         float(school['latitude'])  if school['latitude']  else None,
         'longitude':        float(school['longitude']) if school['longitude'] else None,
         'school_id':        vic_catchment_id if vic_catchment_id else school['school_id'],
         'has_catchment':    'Y' if (school['has_catchment'] == 'Y' or vic_catchment_id) else school['has_catchment'],
-        'geom_5km_buffer':  geom_5km_buffer,
-        'year_levels':      school['year_range'],
+        'buffer_geojson':   geom_5km_buffer,
+        'year_range':       school['year_range'],
         'school_type':      school['school_type'],
-        'school_type_full': school['school_type'],
         'school_url':       school['school_url'],
-        'school_profile_url': acara_url,
+        'acara_url':        acara_url,
         'naplan_url':       naplan_url,
-        'icsea_score':      school['icsea'],
+        'icsea':            school['icsea'],
         'icsea_percentile': school['icsea_percentile'],
     }
 
@@ -137,8 +136,16 @@ def get_australia_school_addresses(conn, acara_sml_id: int,
             filter_conditions.append("ad.number_first::text ILIKE %s")
             filter_params.append('%' + street_number + '%')
         if street:
-            filter_conditions.append("sl.street_name ILIKE %s")
-            filter_params.append('%' + street + '%')
+            _parts  = street.upper().split()
+            _last   = _parts[-1] if _parts else ''
+            _gnaf_t = _STREET_TYPE_TO_CODE.get(_last)
+            if _gnaf_t and len(_parts) > 1:
+                _name_part = ' '.join(_parts[:-1])
+                filter_conditions.append("UPPER(sl.street_name) LIKE UPPER(%s) AND UPPER(sl.street_type_code) = %s")
+                filter_params.extend(['%' + _name_part + '%', _gnaf_t])
+            else:
+                filter_conditions.append("sl.street_name ILIKE %s")
+                filter_params.append('%' + street + '%')
         if suburb:
             filter_conditions.append("l.locality_name ILIKE %s")
             filter_params.append('%' + suburb + '%')
@@ -153,7 +160,7 @@ def get_australia_school_addresses(conn, acara_sml_id: int,
 
         query = f"""
             SELECT
-                ad.address_detail_pid AS gnaf_id,
+                ad.address_detail_pid,
                 COALESCE(ad.number_first_prefix  || '', '') ||
                 COALESCE(ad.number_first::text   || '', '') ||
                 COALESCE(ad.number_first_suffix  || ' ', ' ') ||
@@ -221,10 +228,10 @@ def get_australia_school_addresses(conn, acara_sml_id: int,
         total = (cur.fetchone() or {}).get('total', len(filtered))
 
     return {
-        'addresses': [dict(a) for a in filtered],
-        'total':     total,
-        'limit':     limit,
-        'offset':    offset,
+        'addresses':   [dict(a) for a in filtered],
+        'total_count': total,
+        'limit':       limit,
+        'offset':      offset,
     }
 
 
@@ -290,7 +297,10 @@ def autocomplete_australia_school_suburbs(conn, acara_sml_id: int, query: str) -
             """,
             (lat - off, lat + off, lng - off, lng + off, query + '%'),
         )
-        return [dict(r) for r in cur.fetchall()]
+        return [
+            {'suburb': r['locality_name'], 'postcode': r.get('postcode')}
+            for r in cur.fetchall()
+        ]
 
 
 def autocomplete_australia_school_postcodes(conn, acara_sml_id: int, query: str) -> list:

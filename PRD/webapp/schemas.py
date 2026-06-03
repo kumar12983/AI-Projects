@@ -44,3 +44,58 @@ class LoginRequest(BaseModel):
         if not v:
             raise ValueError("password is required")
         return v
+
+
+class RegisterRequest(BaseModel):
+    """Request body for POST /api/auth/register."""
+    email:     str
+    password:  str
+    full_name: str
+
+    @field_validator("email")
+    @classmethod
+    def normalise_email(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not v:
+            raise ValueError("email is required")
+        return v
+
+    @field_validator("password")
+    @classmethod
+    def password_min_length(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("password must be at least 8 characters")
+        return v
+
+    @field_validator("full_name")
+    @classmethod
+    def name_not_empty(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("full_name is required")
+        return v
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Request body for POST /api/auth/forgot-password."""
+    email: str
+
+    @field_validator("email")
+    @classmethod
+    def normalise_email(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not v:
+            raise ValueError("email is required")
+        return v
+
+
+class ResetPasswordRequest(BaseModel):
+    """Request body for POST /api/auth/reset-password/{token}."""
+    password: str
+
+    @field_validator("password")
+    @classmethod
+    def password_min_length(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("password must be at least 8 characters")
+        return v
