@@ -46,7 +46,7 @@ def create_checkout_session(conn, user_id: int, user_email: str,
         cancel_url=host_url + 'pricing',
         metadata={'user_id': user_id},
     )
-    return {'sessionId': session.id}
+    return {'sessionId': session.id, 'url': session.url}
 
 
 def handle_checkout_completed(conn, session: dict) -> None:

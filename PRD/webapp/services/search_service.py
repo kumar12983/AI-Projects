@@ -98,6 +98,13 @@ def autocomplete_full_address(conn, query: str, state: str = '') -> list:
     exec_params: list = []
     has_text_anchor = False
 
+    # Australian postcodes are 4-digit numbers appearing as the last token.
+    # Detect and separate them so they aren't misidentified as number_first.
+    postcode_suffix = None
+    if tokens and re.match(r'^\d{4}$', tokens[-1]):
+        postcode_suffix = tokens[-1]
+        tokens = tokens[:-1]
+
     for token in tokens:
         pure_num   = re.match(r'^\d+$', token)
         num_suffix = re.match(r'^(\d+)([A-Z]+)$', token)
@@ -114,6 +121,11 @@ def autocomplete_full_address(conn, query: str, state: str = '') -> list:
             where_parts.append("full_address LIKE %s")
             exec_params.append('%' + token + '%')
             has_text_anchor = True
+
+    # Add postcode as a filter only when other criteria exist (avoids overly broad queries)
+    if postcode_suffix and where_parts:
+        where_parts.append("postcode = %s")
+        exec_params.append(postcode_suffix)
 
     if not where_parts:
         return []

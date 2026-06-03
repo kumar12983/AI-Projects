@@ -206,8 +206,11 @@ class SchoolAutocompleteQuery(BaseModel):
 
 
 class SchoolAddressFilterQuery(BaseModel):
+    street_number: Optional[str] = None
     street: Optional[str] = None
     suburb: Optional[str] = None
+    postcode: Optional[str] = None
+    state: Optional[str] = None
     limit: int = 100
     offset: int = 0
 

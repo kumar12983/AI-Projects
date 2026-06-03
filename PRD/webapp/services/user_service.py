@@ -2,7 +2,35 @@
 User service — registration, authentication, and password-reset logic.
 All functions accept a live psycopg2 connection.
 """
+import os
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 from models import User
+
+
+def _send_email_smtp(to_address: str, subject: str, html_body: str) -> None:
+    """Send an email via SMTP using environment variables for configuration."""
+    mail_server  = os.getenv("MAIL_SERVER", "smtp.gmail.com")
+    mail_port    = int(os.getenv("MAIL_PORT", "587"))
+    mail_use_tls = os.getenv("MAIL_USE_TLS", "true").lower() == "true"
+    mail_user    = os.getenv("MAIL_USERNAME", "")
+    mail_pass    = os.getenv("MAIL_PASSWORD", "")
+    mail_sender  = os.getenv("MAIL_DEFAULT_SENDER", mail_user)
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"]    = mail_sender
+    msg["To"]      = to_address
+    msg.attach(MIMEText(html_body, "html"))
+
+    with smtplib.SMTP(mail_server, mail_port) as server:
+        if mail_use_tls:
+            server.starttls()
+        if mail_user and mail_pass:
+            server.login(mail_user, mail_pass)
+        server.sendmail(mail_sender, to_address, msg.as_string())
 
 
 def register_user(conn, email: str, password: str, full_name: str) -> int | None:
@@ -47,7 +75,7 @@ def get_user_by_id(conn, user_id: int) -> User | None:
     return User.get_by_id(conn, user_id)
 
 
-def request_password_reset(conn, email: str, mail_instance, reset_url_builder) -> bool:
+def request_password_reset(conn, email: str, reset_url_builder) -> bool:
     """
     Generate a reset token and e-mail the link.
     *reset_url_builder* is a callable that accepts the raw token and returns a URL string.
@@ -58,12 +86,7 @@ def request_password_reset(conn, email: str, mail_instance, reset_url_builder) -
         return False
 
     reset_url = reset_url_builder(raw_token)
-    try:
-        from flask_mail import Message
-        msg = Message(
-            subject='Reset Your Password – Property Research Database',
-            recipients=[email],
-            html=f'''
+    html_body = f'''
 <p>Hi,</p>
 <p>We received a request to reset the password for your account.</p>
 <p><a href="{reset_url}" style="background:#1e3a8a;color:#fff;padding:10px 20px;
@@ -73,9 +96,9 @@ def request_password_reset(conn, email: str, mail_instance, reset_url_builder) -
 <p>This link expires in <strong>1 hour</strong>. If you did not request this,
    you can safely ignore this email — your password will not be changed.</p>
 <p>— Property Research Database</p>
-''',
-        )
-        mail_instance.send(msg)
+'''
+    try:
+        _send_email_smtp(email, 'Reset Your Password – Property Research Database', html_body)
     except Exception as exc:
         print(f"[user_service.request_password_reset] email send error: {exc}")
 

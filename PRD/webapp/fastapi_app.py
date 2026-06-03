@@ -1,7 +1,7 @@
 """
 FastAPI app — owns all /api/* routes.
-Flask (app.py) continues to serve HTML pages (login, dashboard, pricing, etc.) during Phase 2.
-Flask is retired in Phase 3 when the Next.js frontend replaces HTML templates.
+Flask (app.py) continues to serve HTML pages (login, dashboard, pricing, etc.).
+Frontend: static HTML/CSS/JS templates (Flask-served) or Next.js (frontend/).
 """
 import os
 from contextlib import asynccontextmanager
